@@ -10,7 +10,8 @@ PORT = 6328
 ROOT = "lite"
 EXTRA_ASSETS_PATH = os.path.abspath("ascope_assets")
 BUNDLED_ASSETS_PATH = os.path.abspath(os.path.join(ROOT, "bundledAssets"))
-ALLOWED_LOG_SUFFIXES = [".wpilog", ".rlog"]  # Hoot not supported
+LOGS_PATH = os.path.abspath(os.path.join(ROOT, "U/logs"))
+ALLOWED_LOG_SUFFIXES = [".wpilog", ".rlog", ".log"]  # Hoot not supported
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -72,15 +73,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         elif request.path == "/logs" or request.path == "/logs/":
             files = []
             if "folder" in query and len(query["folder"]) > 0:
-                if not os.path.exists(query["folder"][0]) or not os.path.isdir(query["folder"][0]):
-                    self.send_error(404, "Requested folder does not exist")
-                    return
-                for filename in [x for x in os.listdir(query["folder"][0]) if not x.startswith(".")]:
+                #if not os.path.exists(query["folder"][0]) or not os.path.isdir(query["folder"][0]):
+                #    self.send_error(404, "Requested folder does not exist")
+                #    return
+                for filename in [x for x in os.listdir(LOGS_PATH) if not x.startswith(".")]:
                     for suffix in ALLOWED_LOG_SUFFIXES:
                         if filename.endswith(suffix):
                             files.append({
                                 "name": filename,
-                                "size": os.path.getsize(os.path.join(query["folder"][0], filename))
+                                "size": os.path.getsize(os.path.join(LOGS_PATH, filename))
                             })
                             break
             json_string = json.dumps(files, separators=(',', ':'))
@@ -99,7 +100,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         is_valid = True
                         break
                 if is_valid:
-                    full_path = os.path.join(query["folder"][0], filename)
+                    full_path = os.path.join(LOGS_PATH, filename)
                     if os.path.exists(full_path):
                         try:
                             with open(full_path, 'rb') as f:
