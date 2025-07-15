@@ -1,3 +1,34 @@
+# AdvantageScope Roadrunner Support
+
+This is a fork of AdvantageScope adding support for Roadrunner's replay system. Install from the Releases tab as normal.
+
+Roadrunner automatically logs your robot's current position, target position, and various other replay data each run.
+This means you can use AdvantageScope immediately with **zero** robot code changes if you use Road Runner.
+
+**Download these logs from 192.168.43.1:8080/logs.**
+Then you can open or drag and drop them into AdvantageScope.
+
+## Adding Custom Data
+
+Roadrunner automatically logs position and following data.
+However, you may also want to log your own fields, such as for motor control or sensor data.
+
+You can add custom data using `FlightRecorder.write("LABEL",any object)`.
+Roadrunner will automatically parse almost any object or type into a bit-efficient, custom format,
+so you don't need to worry about splitting it up.
+For most usages, the messages classes built into the QuickStart are helpful for easier parsing.
+
+You can separate your log data by using / in the label.
+Slashes divide the data into individual folders in AdvantageScope.
+
+You can also use the DownsampledWriter class, as used in MecanumDrive, to log data at a lower interval.
+
+If you want to automatically log your telemetry, a [LogTelemetry](https://github.com/jdhs-ftc/2024/blob/master/TeamCode/src/main/java/org/firstinspires/ftc/teamcode/helpers/LogTelemetry.kt) class is available.
+You can use this in an OpMode like so: `telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().telemetry, LogTelemetry())`
+
+AdvantageScope assumes that you log timestamps as the direct output of System.nanoTime(), like the Roadrunner Quickstart does.
+If you're logging something without using the QuickStart, make sure at some point in your loop you are logging System.nanoTime() to a log field called `TIMESTAMP`, or logging an object containg a `long` field called `timestamp` set to System.nanoTime().
+
 # ![AdvantageScope](/docs/docs/img/banner.png)
 
 [![Build](https://github.com/Mechanical-Advantage/AdvantageScope/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/Mechanical-Advantage/AdvantageScope/actions/workflows/build.yml)
