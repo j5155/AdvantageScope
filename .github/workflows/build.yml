@@ -579,7 +579,7 @@ jobs:
 
   finalize-release:
     name: Finalize Release
-    needs: [build-win, build-mac, build-linux, build-wpilib-win, build-wpilib-mac, build-wpilib-linux]
+    needs: [build-win, build-linux, build-wpilib-win, build-wpilib-linux]
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
 
