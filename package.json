@@ -100,7 +100,6 @@
     "copyright": "Copyright © 2021-2025 Littleton Robotics",
     "npmRebuild": false,
     "publish": [],
-    "afterSign": "notarize.js",
     "electronFuses": {
       "runAsNode": false
     },
