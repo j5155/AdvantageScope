@@ -451,17 +451,6 @@ jobs:
           cache: "npm"
       - name: Install Node.js dependencies
         run: npm ci
-      - name: Load macOS certificate
-        if: github.event_name != 'pull_request'
-        run: |
-          echo "CSC_LINK=${{ secrets.MACOS_CERTIFICATE }}" >> $GITHUB_ENV
-          echo "CSC_KEY_PASSWORD=${{ secrets.MACOS_CERTIFICATE_PWD }}" >> $GITHUB_ENV
-      - name: Load macOS notarization credentials
-        if: github.event_name == 'release'
-        run: |
-          echo "APPLE_ID=${{ secrets.MACOS_APPLE_ID }}" >> $GITHUB_ENV
-          echo "APPLE_ID_PWD=${{ secrets.MACOS_APPLE_ID_PWD }}" >> $GITHUB_ENV
-          echo "APPLE_ID_TEAM=${{ secrets.MACOS_APPLE_ID_TEAM }}" >> $GITHUB_ENV
       - name: Download bundles
         uses: actions/download-artifact@v4
         with:
@@ -470,7 +459,7 @@ jobs:
       - name: Build documentation
         run: npm run docs:build-embed
       - name: Build app
-        run: npx electron-builder build --publish never --${{ matrix.arch }} -m dir
+        run: npx electron-builder build --publish never --${{ matrix.arch }} -m dir -c.mac.identity=null
         env:
           ASCOPE_DISTRIBUTION: WPILIB
           NODE_OPTIONS: --max-old-space-size=4096
