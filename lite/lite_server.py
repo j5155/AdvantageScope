@@ -25,7 +25,7 @@ EXTRA_ASSETS_PATH = "/home/systemcore/ascope_assets" if IS_SYSTEMCORE else os.pa
 BUNDLED_ASSETS_PATH = os.path.join(ROOT, "bundledAssets")
 ALLOWED_LOG_SUFFIXES = [".wpilog", ".rlog"]  # Hoot not supported
 ENABLE_FILESYSTEM_ACCESS = IS_SYSTEMCORE or "--enable-file-access" in sys.argv
-WEBROOT = ""
+WEBROOT = "/as"
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
