@@ -21,15 +21,29 @@ let command: Field3dRendererCommand | null = null;
 let assets: AdvantageScopeAssets | null = null;
 let isRendering = false;
 let serverTimeOffset: number | null = null;
+let socket: WebSocket | null = null;
 
 window.addEventListener("load", () => {
   renderer = new XRRenderer();
+  renderer.renderer.setAnimationLoop(renderWebXR);
+  let url = window.location.href.replace("http://", "ws://").replace("https://", "wss://").concat("ws");
+  socket = new WebSocket(url);
+  socket.onmessage = async (event) => {
+    if (event.data instanceof Blob) {
+      let packet = msgpackDecoder.decode(await event.data.arrayBuffer()) as XRPacket;
+      setCommand(packet, false);
+    }
+  }
 });
 
 // @ts-expect-error
 window.setCommand = (commandRaw: string, isQueued: boolean) => {
-  let commandBuffer = Uint8Array.from(atob(commandRaw), (c) => c.charCodeAt(0));
+  let commandBuffer = Uint8Array.from(atob(commandRaw), (c)=> c.charCodeAt(0));
   let packet = msgpackDecoder.decode(commandBuffer) as XRPacket;
+  setCommand(packet, isQueued);
+};
+
+function setCommand(packet: XRPacket, isQueued: boolean){
   switch (packet.type) {
     case "settings":
       settings = packet.value;
@@ -55,7 +69,7 @@ window.setCommand = (commandRaw: string, isQueued: boolean) => {
       assets = packet.value;
       break;
   }
-};
+}
 
 // @ts-expect-error
 window.render = (renderState: XRRenderState) => {
@@ -83,9 +97,15 @@ window.userTap = () => {
 export function sendHostMessage(name: string, data?: any) {
   let message: NamedMessage = { name: name, data: data };
   try {
-    // @ts-expect-error
-    window.webkit.messageHandlers.asxr.postMessage(message);
+    // commented @ts-expect-error
+    //window.webkit.messageHandlers.asxr.postMessage(message);
   } catch (error) {
-    console.error(error);
+    //console.error(error);
+  }
+}
+
+function renderWebXR(time: DOMHighResTimeStamp, frame: XRFrame) {
+  if (settings !== null && command !== null) {
+    renderer.render(renderer.webXrStateToXRFrameState(), settings, command, assets);
   }
 }

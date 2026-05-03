@@ -16,7 +16,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { AdvantageScopeAssets, BuiltIn3dFields, Config3dField, CoordinateSystem } from "../shared/AdvantageScopeAssets";
 import { RaycastResult, XRCalibrationMode, XRFrameState, XRSettings } from "../shared/XRTypes";
-import { rotationSequenceToQuaternion } from "../shared/geometry";
+import { rotationSequenceToQuaternion, Translation3d } from "../shared/geometry";
 import { Field3dRendererCommand, Field3dRendererCommand_AnyObj } from "../shared/renderers/Field3dRenderer";
 import { disposeObject } from "../shared/renderers/Field3dRendererImpl";
 import makeAxesField from "../shared/renderers/field3d/AxesField";
@@ -32,16 +32,15 @@ import RobotManager from "../shared/renderers/field3d/objectManagers/RobotManage
 import TrajectoryManager from "../shared/renderers/field3d/objectManagers/TrajectoryManager";
 import { Units } from "../shared/units";
 import { clampValue, wrapRadians } from "../shared/util";
-import XRCamera from "./XRCamera";
 import { sendHostMessage } from "./xrClient";
-
+import { XRButton } from "three/addons/webxr/XRButton.js"
 export default class XRRenderer {
   private MATERIAL_SPECULAR: THREE.Color = new THREE.Color(0x000000);
   private MATERIAL_SHININESS = 0;
 
-  private canvas: HTMLCanvasElement;
+  private readonly canvas: HTMLCanvasElement;
   private spinner: HTMLElement;
-  private renderer: THREE.WebGLRenderer;
+  public renderer: THREE.WebGLRenderer;
   private composer: EffectComposer;
   private flimPass: FilmPass;
   private resolution = new THREE.Vector2();
@@ -52,7 +51,7 @@ export default class XRRenderer {
   private lastIsCalibrating = false;
 
   private scene: THREE.Scene;
-  private camera: XRCamera;
+  private camera: THREE.Camera;
   private ambientLight: THREE.AmbientLight;
   private spotLight: THREE.SpotLight;
   private anchors: { [key: string]: THREE.Object3D } = {};
@@ -66,6 +65,7 @@ export default class XRRenderer {
   private fieldCarpet: THREE.Object3D | null = null;
   private fieldStagedPieces: THREE.Object3D | null = null;
   private fieldPieces: { [key: string]: THREE.Mesh } = {};
+  private controller: THREE.XRTargetRaySpace | null = null
 
   private objectManagers: {
     type: Field3dRendererCommand_AnyObj["type"];
@@ -86,8 +86,19 @@ export default class XRRenderer {
     this.canvas = document.getElementsByTagName("canvas")[0] as HTMLCanvasElement;
     this.spinner = document.getElementsByClassName("spinner-cubes-container")[0] as HTMLElement;
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, alpha: true });
+    this.renderer.xr.enabled = true;
+    this.renderer.setPixelRatio( window.devicePixelRatio );
+    this.renderer.setSize( window.innerWidth, window.innerHeight );
+    this.renderer.setClearAlpha( 1.0 );
+    this.renderer.setClearColor( new THREE.Color( 0 ), 0 );
+    document.body.appendChild(XRButton.createButton(this.renderer));
     this.scene = new THREE.Scene();
-    this.camera = new XRCamera();
+    this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20 );//new XRCamera();
+    this.camera.position.set(0,1.6,0)
+    this.controller = this.renderer.xr.getController( 0 );
+    this.controller.addEventListener('selectstart', () => this.userTap())
+    this.scene.add(this.controller)
+
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.flimPass = new FilmPass(1, false);
@@ -170,6 +181,10 @@ export default class XRRenderer {
   }
 
   userTap() {
+    if (this.markedPoints.length > 4) {
+      this.resetCalibration()
+      return
+    }
     // Add a new marked point
     if (this.lastRaycastResult.isValid) {
       let markedPoint = new THREE.Object3D();
@@ -178,6 +193,24 @@ export default class XRRenderer {
       this.anchors[this.lastRaycastResult.anchorId].add(markedPoint);
     }
   }
+
+
+  public webXrStateToXRFrameState(): XRFrameState {
+    let cameraPos: Translation3d = [this.camera.position.x,this.camera.position.y,this.camera.position.z];
+
+    let raycast: RaycastResult = { isValid: false };
+    if (this.controller) raycast = {isValid: true, position: [this.controller.position.x,this.controller.position.y,this.controller.position.z], anchorId: "zero"};
+    return {
+      camera: { position: cameraPos, projection: this.camera.projectionMatrix.elements, worldInverse: this.camera.matrixWorldInverse.elements },
+      anchors: { "zero": [0.0,0.0,0.0]},
+      frameSize: [window.innerWidth, window.innerHeight],
+      lighting: { intensity: 1.0, temperature: 4500.0, grain: 0.0 },
+      raycast: raycast
+    }
+  }
+
+
+
 
   /** Updates the field position based on reference points. */
   private updateFieldRootMiniature(fieldLength: number, redReference: THREE.Vector3, blueReference: THREE.Vector3) {
@@ -788,8 +821,9 @@ export default class XRRenderer {
 
     // Render frame
     if (
-      this.canvas.width / devicePixelRatio !== viewWidthPx ||
-      this.canvas.height / devicePixelRatio !== viewHeightPx
+      (this.canvas.width / devicePixelRatio !== viewWidthPx ||
+      this.canvas.height / devicePixelRatio !== viewHeightPx)
+      && !this.renderer.xr.isPresenting // can't adjust resolution in xr mode
     ) {
       this.renderer.setPixelRatio(devicePixelRatio);
       this.composer.setPixelRatio(devicePixelRatio);
@@ -797,7 +831,8 @@ export default class XRRenderer {
       this.composer.setSize(viewWidthPx, viewHeightPx);
       this.resolution.set(viewWidthPx, viewHeightPx);
     }
-    this.composer.render(1 / 60);
+    //this.composer.render(); // computes its own deltatime
+    this.renderer.render(this.scene, this.camera);
   }
 
   private temperatureToColor(temperature: number): THREE.Color {
