@@ -6,6 +6,7 @@
 // at the root directory of this project.
 
 import * as THREE from "three";
+import { XRButton } from "three/addons/webxr/XRButton.js";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -33,7 +34,6 @@ import TrajectoryManager from "../shared/renderers/field3d/objectManagers/Trajec
 import { Units } from "../shared/units";
 import { clampValue, wrapRadians } from "../shared/util";
 import { sendHostMessage } from "./xrClient";
-import { XRButton } from "three/addons/webxr/XRButton.js"
 export default class XRRenderer {
   private MATERIAL_SPECULAR: THREE.Color = new THREE.Color(0x000000);
   private MATERIAL_SHININESS = 0;
@@ -65,7 +65,7 @@ export default class XRRenderer {
   private fieldCarpet: THREE.Object3D | null = null;
   private fieldStagedPieces: THREE.Object3D | null = null;
   private fieldPieces: { [key: string]: THREE.Mesh } = {};
-  private controller: THREE.XRTargetRaySpace | null = null
+  private controller: THREE.XRTargetRaySpace | null = null;
 
   private objectManagers: {
     type: Field3dRendererCommand_AnyObj["type"];
@@ -87,17 +87,17 @@ export default class XRRenderer {
     this.spinner = document.getElementsByClassName("spinner-cubes-container")[0] as HTMLElement;
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, alpha: true });
     this.renderer.xr.enabled = true;
-    this.renderer.setPixelRatio( window.devicePixelRatio );
-    this.renderer.setSize( window.innerWidth, window.innerHeight );
-    this.renderer.setClearAlpha( 1.0 );
-    this.renderer.setClearColor( new THREE.Color( 0 ), 0 );
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setClearAlpha(1.0);
+    this.renderer.setClearColor(new THREE.Color(0), 0);
     document.body.appendChild(XRButton.createButton(this.renderer));
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20 );//new XRCamera();
-    this.camera.position.set(0,1.6,0)
-    this.controller = this.renderer.xr.getController( 0 );
-    this.controller.addEventListener('selectstart', () => this.userTap())
-    this.scene.add(this.controller)
+    this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20); //new XRCamera();
+    this.camera.position.set(0, 1.6, 0);
+    this.controller = this.renderer.xr.getController(0);
+    this.controller.addEventListener("selectstart", () => this.userTap());
+    this.scene.add(this.controller);
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -182,8 +182,8 @@ export default class XRRenderer {
 
   userTap() {
     if (this.markedPoints.length > 4) {
-      this.resetCalibration()
-      return
+      this.resetCalibration();
+      return;
     }
     // Add a new marked point
     if (this.lastRaycastResult.isValid) {
@@ -194,23 +194,28 @@ export default class XRRenderer {
     }
   }
 
-
   public webXrStateToXRFrameState(): XRFrameState {
-    let cameraPos: Translation3d = [this.camera.position.x,this.camera.position.y,this.camera.position.z];
+    let cameraPos: Translation3d = [this.camera.position.x, this.camera.position.y, this.camera.position.z];
 
     let raycast: RaycastResult = { isValid: false };
-    if (this.controller) raycast = {isValid: true, position: [this.controller.position.x,this.controller.position.y,this.controller.position.z], anchorId: "zero"};
+    if (this.controller)
+      raycast = {
+        isValid: true,
+        position: [this.controller.position.x, this.controller.position.y, this.controller.position.z],
+        anchorId: "zero"
+      };
     return {
-      camera: { position: cameraPos, projection: this.camera.projectionMatrix.elements, worldInverse: this.camera.matrixWorldInverse.elements },
-      anchors: { "zero": [0.0,0.0,0.0]},
+      camera: {
+        position: cameraPos,
+        projection: this.camera.projectionMatrix.elements,
+        worldInverse: this.camera.matrixWorldInverse.elements
+      },
+      anchors: { zero: [0.0, 0.0, 0.0] },
       frameSize: [window.innerWidth, window.innerHeight],
       lighting: { intensity: 1.0, temperature: 4500.0, grain: 0.0 },
       raycast: raycast
-    }
+    };
   }
-
-
-
 
   /** Updates the field position based on reference points. */
   private updateFieldRootMiniature(fieldLength: number, redReference: THREE.Vector3, blueReference: THREE.Vector3) {
@@ -822,8 +827,8 @@ export default class XRRenderer {
     // Render frame
     if (
       (this.canvas.width / devicePixelRatio !== viewWidthPx ||
-      this.canvas.height / devicePixelRatio !== viewHeightPx)
-      && !this.renderer.xr.isPresenting // can't adjust resolution in xr mode
+        this.canvas.height / devicePixelRatio !== viewHeightPx) &&
+      !this.renderer.xr.isPresenting // can't adjust resolution in xr mode
     ) {
       this.renderer.setPixelRatio(devicePixelRatio);
       this.composer.setPixelRatio(devicePixelRatio);

@@ -33,17 +33,17 @@ window.addEventListener("load", () => {
       let packet = msgpackDecoder.decode(await event.data.arrayBuffer()) as XRPacket;
       setCommand(packet, false);
     }
-  }
+  };
 });
 
 // @ts-expect-error
 window.setCommand = (commandRaw: string, isQueued: boolean) => {
-  let commandBuffer = Uint8Array.from(atob(commandRaw), (c)=> c.charCodeAt(0));
+  let commandBuffer = Uint8Array.from(atob(commandRaw), (c) => c.charCodeAt(0));
   let packet = msgpackDecoder.decode(commandBuffer) as XRPacket;
   setCommand(packet, isQueued);
 };
 
-function setCommand(packet: XRPacket, isQueued: boolean){
+function setCommand(packet: XRPacket, isQueued: boolean) {
   switch (packet.type) {
     case "settings":
       settings = packet.value;

@@ -18,7 +18,7 @@ import replaceRegEx from "rollup-plugin-re";
 
 const isWpilib = process.env.ASCOPE_DISTRIBUTION === "WPILIB";
 const isLite = process.env.ASCOPE_DISTRIBUTION === "LITE";
-const enableSourcemap = process.env.ENABLE_SOURCEMAP !== undefined;
+const enableSourcemap = process.env.ENABLE_SOURCEMAP === "true";
 const licenseHeader =
   "// Copyright (c) 2021-2026 Littleton Robotics\n// http://github.com/Mechanical-Advantage\n//\n// Use of this source code is governed by a BSD\n// license that can be found in the LICENSE file\n// at the resources directory of this application.\n";
 
@@ -34,15 +34,15 @@ function bundle(input, output, isMain, isXRClient, external = []) {
       file: (isLite ? "lite/static/" : "") + "bundles/" + output,
       format: isMain ? "cjs" : "es",
       banner: licenseHeader,
-      sourcemap: enableSourcemap,
+      sourcemap: enableSourcemap
     },
     context: "this",
     external: external,
     plugins: [
       typescript({
         compilerOptions: {
-          "sourceMap": enableSourcemap,
-          "removeComments": !enableSourcemap,
+          sourceMap: enableSourcemap,
+          removeComments: !enableSourcemap
         }
       }),
       nodeResolve({
@@ -56,7 +56,7 @@ function bundle(input, output, isMain, isXRClient, external = []) {
               compact: !enableSourcemap,
               targets: "iOS 16" // AdvantageScope XR is built for iOS 16
             }),
-            enableSourcemap ? terser() : false
+            enableSourcemap ? false : terser()
           ]
         : isLite
         ? [
@@ -65,7 +65,7 @@ function bundle(input, output, isMain, isXRClient, external = []) {
               compact: !enableSourcemap,
               targets: "> 0.1%, not dead"
             }),
-            enableSourcemap ? terser({ mangle: { reserved: ["Module"] } }) : false
+            enableSourcemap ? false : terser({ mangle: { reserved: ["Module"] } })
           ]
         : [cleanup()]),
       json(),
