@@ -42,7 +42,7 @@ export default class XRRenderer {
   private spinner: HTMLElement;
   public renderer: THREE.WebGLRenderer;
   private composer: EffectComposer;
-  private flimPass: FilmPass;
+  private filmPass: FilmPass;
   private resolution = new THREE.Vector2();
 
   private lastCalibrationMode: XRCalibrationMode | null = null;
@@ -101,8 +101,8 @@ export default class XRRenderer {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.flimPass = new FilmPass(1, false);
-    this.composer.addPass(this.flimPass);
+    this.filmPass = new FilmPass(1, false);
+    this.composer.addPass(this.filmPass);
     this.composer.addPass(new OutputPass());
 
     // Create coordinate groups
@@ -809,7 +809,7 @@ export default class XRRenderer {
     // Update rendering options from AR state
     this.camera.matrixWorldInverse.fromArray(renderState.camera.worldInverse);
     this.camera.projectionMatrix.fromArray(renderState.camera.projection);
-    (this.flimPass.uniforms as any).intensity.value = renderState.lighting.grain;
+    (this.filmPass.uniforms as any).intensity.value = renderState.lighting.grain;
     this.ambientLight.intensity = renderState.lighting.intensity;
     this.spotLight.intensity =
       (1 - (1 - renderState.lighting.intensity) * 0.5) * // Lower intensity of lighting changes
