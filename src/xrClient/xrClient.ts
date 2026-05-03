@@ -22,18 +22,24 @@ let assets: AdvantageScopeAssets | null = null;
 let isRendering = false;
 let serverTimeOffset: number | null = null;
 let socket: WebSocket | null = null;
+let ios = false;
 
 window.addEventListener("load", () => {
-  renderer = new XRRenderer();
-  renderer.renderer.setAnimationLoop(renderWebXR);
-  let url = window.location.href.replace("http://", "ws://").replace("https://", "wss://").concat("ws");
-  socket = new WebSocket(url);
-  socket.onmessage = async (event) => {
-    if (event.data instanceof Blob) {
-      let packet = msgpackDecoder.decode(await event.data.arrayBuffer()) as XRPacket;
-      setCommand(packet, false);
-    }
-  };
+  if (navigator.userAgent.match(/iPad|iPhone|iPod/i)) {
+    ios = true;
+    renderer = new XRRenderer(true);
+  } else {
+    renderer = new XRRenderer(false);
+    renderer.renderer.setAnimationLoop(renderWebXR);
+    let url = window.location.href.replace("http://", "ws://").replace("https://", "wss://").concat("ws");
+    socket = new WebSocket(url);
+    socket.onmessage = async (event) => {
+      if (event.data instanceof Blob) {
+        let packet = msgpackDecoder.decode(await event.data.arrayBuffer()) as XRPacket;
+        setCommand(packet, false);
+      }
+    };
+  }
 });
 
 // @ts-expect-error
@@ -95,12 +101,15 @@ window.userTap = () => {
 };
 
 export function sendHostMessage(name: string, data?: any) {
+  if (!ios) {
+    return
+  }
   let message: NamedMessage = { name: name, data: data };
   try {
-    // commented @ts-expect-error
-    //window.webkit.messageHandlers.asxr.postMessage(message);
+    // @ts-expect-error
+    window.webkit.messageHandlers.asxr.postMessage(message);
   } catch (error) {
-    //console.error(error);
+    console.error(error);
   }
 }
 

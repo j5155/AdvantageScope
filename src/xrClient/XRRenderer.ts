@@ -34,9 +34,12 @@ import TrajectoryManager from "../shared/renderers/field3d/objectManagers/Trajec
 import { Units } from "../shared/units";
 import { clampValue, wrapRadians } from "../shared/util";
 import { sendHostMessage } from "./xrClient";
+import XRCamera from "./XRCamera";
 export default class XRRenderer {
   private MATERIAL_SPECULAR: THREE.Color = new THREE.Color(0x000000);
   private MATERIAL_SHININESS = 0;
+
+  private ios: Boolean;
 
   private readonly canvas: HTMLCanvasElement;
   private spinner: HTMLElement;
@@ -82,22 +85,27 @@ export default class XRRenderer {
   private lastCoordinateSystem: CoordinateSystem | null = null;
   private lastAssetsString: string = "";
 
-  constructor() {
+  constructor(ios: boolean) {
+    this.ios = ios
     this.canvas = document.getElementsByTagName("canvas")[0] as HTMLCanvasElement;
     this.spinner = document.getElementsByClassName("spinner-cubes-container")[0] as HTMLElement;
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, alpha: true });
-    this.renderer.xr.enabled = true;
+    this.renderer.xr.enabled = !this.ios;
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setClearAlpha(1.0);
     this.renderer.setClearColor(new THREE.Color(0), 0);
-    document.body.appendChild(XRButton.createButton(this.renderer));
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20); //new XRCamera();
-    this.camera.position.set(0, 1.6, 0);
-    this.controller = this.renderer.xr.getController(0);
-    this.controller.addEventListener("selectstart", () => this.userTap());
-    this.scene.add(this.controller);
+    if (this.ios) {
+      this.camera = new XRCamera();
+    } else {
+      document.body.appendChild(XRButton.createButton(this.renderer));
+      this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20); //new XRCamera();
+      this.camera.position.set(0, 1.6, 0);
+      this.controller = this.renderer.xr.getController(0);
+      this.controller.addEventListener("selectstart", () => this.userTap());
+      this.scene.add(this.controller);
+    }
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -181,7 +189,7 @@ export default class XRRenderer {
   }
 
   userTap() {
-    if (this.markedPoints.length > 4) {
+    if (this.markedPoints.length > 4 && !this.ios) {
       this.resetCalibration();
       return;
     }
