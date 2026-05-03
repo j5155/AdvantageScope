@@ -69,6 +69,9 @@ export default class XRRenderer {
   private fieldStagedPieces: THREE.Object3D | null = null;
   private fieldPieces: { [key: string]: THREE.Mesh } = {};
   private controller: THREE.XRTargetRaySpace | null = null;
+  private text3d: THREE.Object3D;
+  private textcanvas: HTMLCanvasElement;
+  private lastCalibrationText: string = "";
 
   private objectManagers: {
     type: Field3dRendererCommand_AnyObj["type"];
@@ -177,6 +180,16 @@ export default class XRRenderer {
         )
       );
     }
+    // Create text renderer
+    this.textcanvas = document.createElement('canvas');
+    let texture = new THREE.CanvasTexture(this.textcanvas);
+    let material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true
+    });
+    this.text3d = new THREE.Sprite(material);
+    this.text3d.translateZ(-1.0);
+    this.camera.add(this.text3d);
   }
 
   resetCalibration() {
@@ -199,6 +212,38 @@ export default class XRRenderer {
       markedPoint.position.set(...this.lastRaycastResult.position);
       this.markedPoints.push(markedPoint);
       this.anchors[this.lastRaycastResult.anchorId].add(markedPoint);
+    }
+  }
+
+  setCalibrationText(text: string) {
+    if (this.ios) {
+      sendHostMessage("setCalibrationText", text);
+    } else if (text != this.lastCalibrationText) {
+      this.lastCalibrationText = text
+      const borderSize = 2;
+      const font = "12px bold sans-serif";
+      let ctx = this.textcanvas.getContext('2d')
+      if (ctx === null) {
+        return
+      }
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+      ctx.font = font;
+      // measure how long the text will be
+      const doubleBorderSize = borderSize * 2;
+      const width = ctx.measureText(text).width + doubleBorderSize;
+      const height = 12 + doubleBorderSize;
+      ctx.canvas.width = width;
+      ctx.canvas.height = height;
+
+      // need to set font again after resizing canvas
+      ctx.font = font;
+      ctx.textBaseline = 'top';
+
+      ctx.fillStyle = 'blue';
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = 'white';
+      ctx.fillText(text, borderSize, borderSize);
     }
   }
 
@@ -502,7 +547,7 @@ export default class XRRenderer {
     if (isCalibrating && raycastUnreliable) {
       calibrationText = "$TRACKING_WARNING"; // Special indicator to display warning about poor tracking
     }
-    sendHostMessage("setCalibrationText", calibrationText);
+    this.setCalibrationText(calibrationText)
     if (!isCalibrating && this.lastIsCalibrating) {
       sendHostMessage("showControls", false);
     }
