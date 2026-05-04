@@ -864,9 +864,11 @@ export default class XRRenderer {
     if ((this.robotLoadingCount > 0 || this.isFieldLoading) && !isCalibrating) {
       this.spinner.classList.add("visible");
       this.spinner.classList.add("animating");
+      if (!this.ios) this.setCalibrationText("Downloading models...");
     } else if (this.spinner.classList.contains("visible")) {
       this.spinner.classList.remove("visible");
       window.setTimeout(() => this.spinner.classList.remove("animating"), 250);
+      if (!this.ios) this.setCalibrationText("");
     }
 
     // Update rendering options from AR state

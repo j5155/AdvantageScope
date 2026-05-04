@@ -147,11 +147,11 @@ export namespace XRServer {
 
     httpServer = http.createServer(requestListener).listen(XR_SERVER_PORT);
 
-    let ipAltNames: SubjectAltNameEntry[] = []
-    ipAltNames.push({type: 7, value: "127.0.0.1"})
+    let ipAltNames: SubjectAltNameEntry[] = [];
+    ipAltNames.push({ type: 7, value: "127.0.0.1" });
     ipAddresses.forEach((ip) => {
-      ipAltNames.push({ type: 7, value: ip } as SubjectAltNameEntry)
-    })
+      ipAltNames.push({ type: 7, value: ip } as SubjectAltNameEntry);
+    });
 
     const pems = await selfsigned.generate([{ name: "commonName", value: "localhost" }], {
       extensions: [
