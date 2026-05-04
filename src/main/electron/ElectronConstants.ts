@@ -39,6 +39,7 @@ export const XR_URL_PREFIX =
   XR_NATIVE_HOST_COMPATIBILITY +
   "&a=";
 export const XR_SERVER_PORT = 56328;
+export const HTTPS_XR_SERVER_PORT = 56329;
 
 // Live RLOG
 export const RLOG_CONNECT_TIMEOUT_MS = 3000; // How long to wait when connecting

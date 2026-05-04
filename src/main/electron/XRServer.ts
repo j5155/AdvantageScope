@@ -8,25 +8,34 @@
 import { Encoder } from "@msgpack/msgpack";
 import fs from "fs";
 import http from "http";
+import * as https from "node:https";
 import { networkInterfaces } from "os";
 import path from "path";
+import selfsigned, { SubjectAltNameEntry } from "selfsigned";
 import { WebSocketServer } from "ws";
 import { AdvantageScopeAssets } from "../../shared/AdvantageScopeAssets";
 import { Field3dRendererCommand } from "../../shared/renderers/Field3dRenderer";
 import { XRPacket, XRSettings } from "../../shared/XRTypes";
-import { XR_SERVER_PORT, XR_URL_PREFIX } from "./ElectronConstants";
+import { HTTPS_XR_SERVER_PORT, XR_SERVER_PORT, XR_URL_PREFIX } from "./ElectronConstants";
 
 export namespace XRServer {
   let httpServer: http.Server | null = null;
   let wsServer: WebSocketServer | null = null;
+  let httpsServer: https.Server | null = null;
+  let wssServer: WebSocketServer | null = null;
   let xrSettings: XRSettings | null = null;
   let periodicInterval: NodeJS.Timeout | null = null;
+  let ipAddresses: Set<string> = new Set();
   const msgpackEncoder = new Encoder();
   export let assetsSupplier: () => AdvantageScopeAssets;
 
   export function getQRText(): string {
+    return XR_URL_PREFIX + Array.from(ipAddresses).join("_");
+  }
+
+  export async function start() {
     const interfaces = networkInterfaces();
-    let ipAddresses: Set<string> = new Set();
+    ipAddresses = new Set();
     Object.values(interfaces).forEach((addressSet) => {
       if (addressSet === undefined) return;
       addressSet.forEach((addressData) => {
@@ -35,114 +44,133 @@ export namespace XRServer {
         }
       });
     });
-    return XR_URL_PREFIX + Array.from(ipAddresses).join("_");
-  }
 
-  export function start() {
     // Create HTTP server
-    httpServer = http
-      .createServer(async (request, response) => {
-        if (request.url !== undefined) {
-          let url: URL;
-          try {
-            url = new URL("http://localhost" + request.url);
-          } catch {
-            response.writeHead(400, { "Content-Type": "text/html" });
-            response.end("Bad request");
-            return;
-          }
-          switch (url.pathname) {
-            case "/":
-              response.writeHead(200, { "Content-Type": "text/html" });
-              response.end(fs.readFileSync(path.join(__dirname, "../www/xrClient.html"), { encoding: "utf-8" }));
-              return;
-            case "/index.css":
-              response.writeHead(200, { "Content-Type": "text/css" });
-              response.end(fs.readFileSync(path.join(__dirname, "../www/xrClient.css"), { encoding: "utf-8" }));
-              return;
-            case "/index.js":
-              response.writeHead(200, { "Content-Type": "text/javascript" });
-              response.end(fs.readFileSync(path.join(__dirname, "../bundles/xrClient.js"), { encoding: "utf-8" }));
-              return;
-            case "/xrClient.js.map":
-              response.writeHead(200, { "Content-Type": "text/javascript" });
-              response.end(fs.readFileSync(path.join(__dirname, "../bundles/xrClient.js.map"), { encoding: "utf-8" }));
-              return;
-            case "/apriltag":
-              let family = url.searchParams.get("family");
-              let name = url.searchParams.get("name");
-              if (family === null || name === null || family.includes("..") || name.includes("..")) {
-                response.writeHead(400);
-                response.end("Family or name not provided or invalid");
-                return;
-              }
-
-              const imgPath = path.join(__dirname, "../www/textures/apriltag-" + family + "/" + name + ".png");
-              try {
-                let imgData = fs.readFileSync(imgPath);
-                response.writeHead(200, { "Content-Type": "image/png" });
-                response.end(imgData);
-              } catch {
-                response.writeHead(404);
-                response.end("Texture not found");
-                return;
-              }
-              return;
-            case "/asset":
-              let assetPath = url.searchParams.get("path");
-              if (assetPath === null) {
-                response.writeHead(400);
-                response.end("Asset path not provided");
-                return;
-              }
-
-              // Clean requested path
-              if (!assetPath!.endsWith(".glb")) {
-                response.writeHead(400);
-                response.end("Asset path is invalid");
-                return;
-              }
-              let assetPathSimplified = assetPath!.substring(0, assetPath!.length - ".glb".length);
-              while (
-                assetPathSimplified.length > 0 &&
-                !isNaN(Number(assetPathSimplified[assetPathSimplified.length - 1]))
-              ) {
-                assetPathSimplified = assetPathSimplified.substring(0, assetPathSimplified.length - 1);
-              }
-              if (assetPathSimplified.endsWith("_")) {
-                assetPathSimplified = assetPathSimplified.substring(0, assetPathSimplified.length - 1);
-              }
-
-              // Check if path is for a valid 3D asset
-              // (Prevent requests for other files)
-              let allAssets = assetsSupplier();
-              let isValid = false;
-              [...allAssets.field3ds, ...allAssets.robots].forEach((fieldConfig) => {
-                let referencePathNoExtension = fieldConfig.path.substring(0, fieldConfig.path!.length - ".glb".length);
-                if (assetPathSimplified === referencePathNoExtension) {
-                  isValid = true;
-                }
-              });
-              if (!isValid) {
-                response.writeHead(400);
-                response.end("Asset path is invalid");
-                return;
-              }
-
-              // Read file
-              response.writeHead(200, { "Content-Type": "application/octet-stream" });
-              response.end(fs.readFileSync(decodeURIComponent(assetPath)));
-              return;
-          }
+    const requestListener: http.RequestListener = async (request, response) => {
+      if (request.url !== undefined) {
+        let url: URL;
+        try {
+          url = new URL("http://localhost" + request.url);
+        } catch {
+          response.writeHead(400, { "Content-Type": "text/html" });
+          response.end("Bad request");
+          return;
         }
+        switch (url.pathname) {
+          case "/":
+            response.writeHead(200, { "Content-Type": "text/html" });
+            response.end(fs.readFileSync(path.join(__dirname, "../www/xrClient.html"), { encoding: "utf-8" }));
+            return;
+          case "/index.css":
+            response.writeHead(200, { "Content-Type": "text/css" });
+            response.end(fs.readFileSync(path.join(__dirname, "../www/xrClient.css"), { encoding: "utf-8" }));
+            return;
+          case "/index.js":
+            response.writeHead(200, { "Content-Type": "text/javascript" });
+            response.end(fs.readFileSync(path.join(__dirname, "../bundles/xrClient.js"), { encoding: "utf-8" }));
+            return;
+          case "/xrClient.js.map":
+            response.writeHead(200, { "Content-Type": "text/javascript" });
+            response.end(fs.readFileSync(path.join(__dirname, "../bundles/xrClient.js.map"), { encoding: "utf-8" }));
+            return;
+          case "/apriltag":
+            let family = url.searchParams.get("family");
+            let name = url.searchParams.get("name");
+            if (family === null || name === null || family.includes("..") || name.includes("..")) {
+              response.writeHead(400);
+              response.end("Family or name not provided or invalid");
+              return;
+            }
 
-        response.writeHead(404);
-        response.end("Not found");
-      })
-      .listen(XR_SERVER_PORT);
+            const imgPath = path.join(__dirname, "../www/textures/apriltag-" + family + "/" + name + ".png");
+            try {
+              let imgData = fs.readFileSync(imgPath);
+              response.writeHead(200, { "Content-Type": "image/png" });
+              response.end(imgData);
+            } catch {
+              response.writeHead(404);
+              response.end("Texture not found");
+              return;
+            }
+            return;
+          case "/asset":
+            let assetPath = url.searchParams.get("path");
+            if (assetPath === null) {
+              response.writeHead(400);
+              response.end("Asset path not provided");
+              return;
+            }
+
+            // Clean requested path
+            if (!assetPath!.endsWith(".glb")) {
+              response.writeHead(400);
+              response.end("Asset path is invalid");
+              return;
+            }
+            let assetPathSimplified = assetPath!.substring(0, assetPath!.length - ".glb".length);
+            while (
+              assetPathSimplified.length > 0 &&
+              !isNaN(Number(assetPathSimplified[assetPathSimplified.length - 1]))
+            ) {
+              assetPathSimplified = assetPathSimplified.substring(0, assetPathSimplified.length - 1);
+            }
+            if (assetPathSimplified.endsWith("_")) {
+              assetPathSimplified = assetPathSimplified.substring(0, assetPathSimplified.length - 1);
+            }
+
+            // Check if path is for a valid 3D asset
+            // (Prevent requests for other files)
+            let allAssets = assetsSupplier();
+            let isValid = false;
+            [...allAssets.field3ds, ...allAssets.robots].forEach((fieldConfig) => {
+              let referencePathNoExtension = fieldConfig.path.substring(0, fieldConfig.path!.length - ".glb".length);
+              if (assetPathSimplified === referencePathNoExtension) {
+                isValid = true;
+              }
+            });
+            if (!isValid) {
+              response.writeHead(400);
+              response.end("Asset path is invalid");
+              return;
+            }
+
+            // Read file
+            response.writeHead(200, { "Content-Type": "application/octet-stream" });
+            response.end(fs.readFileSync(decodeURIComponent(assetPath)));
+            return;
+        }
+      }
+
+      response.writeHead(404);
+      response.end("Not found");
+    };
+
+    httpServer = http.createServer(requestListener).listen(XR_SERVER_PORT);
+
+    let ipAltNames: SubjectAltNameEntry[] = []
+    ipAltNames.push({type: 7, value: "127.0.0.1"})
+    ipAddresses.forEach((ip) => {
+      ipAltNames.push({ type: 7, value: ip } as SubjectAltNameEntry)
+    })
+
+    const pems = await selfsigned.generate([{ name: "commonName", value: "localhost" }], {
+      extensions: [
+        {
+          name: "subjectAltName",
+          altNames: ipAltNames
+        }
+      ]
+    });
+    const options = {
+      key: pems.private,
+      cert: pems.cert
+    };
+
+    httpsServer = https.createServer(options, requestListener).listen(HTTPS_XR_SERVER_PORT);
 
     // Create WebSocket server
     wsServer = new WebSocketServer({ server: httpServer, path: "/ws" });
+    wssServer = new WebSocketServer({ server: httpsServer, path: "/ws" });
     periodicInterval = setInterval(() => {
       // Send current settings
       if (xrSettings !== null) {
@@ -151,10 +179,7 @@ export namespace XRServer {
           time: new Date().getTime(),
           value: xrSettings
         };
-        let message = msgpackEncoder.encode(packet);
-        wsServer?.clients.forEach((client) => {
-          client.send(message);
-        });
+        sendMessage(msgpackEncoder.encode(packet));
       }
 
       // Send assets
@@ -163,16 +188,15 @@ export namespace XRServer {
         time: new Date().getTime(),
         value: assetsSupplier()
       };
-      let message = msgpackEncoder.encode(packet);
-      wsServer?.clients.forEach((client) => {
-        client.send(message);
-      });
+      sendMessage(msgpackEncoder.encode(packet));
     }, 500);
   }
 
   export function stop() {
     httpServer?.close();
     wsServer?.close();
+    httpsServer?.close();
+    wssServer?.close();
     xrSettings = null;
     if (periodicInterval !== null) {
       clearInterval(periodicInterval);
@@ -189,10 +213,7 @@ export namespace XRServer {
       time: new Date().getTime(),
       value: settings
     };
-    let message = msgpackEncoder.encode(packet);
-    wsServer?.clients.forEach((client) => {
-      client.send(message);
-    });
+    sendMessage(msgpackEncoder.encode(packet));
   }
 
   export function setHubCommand(command: Field3dRendererCommand) {
@@ -202,8 +223,14 @@ export namespace XRServer {
       time: new Date().getTime(),
       value: command
     };
-    let message = msgpackEncoder.encode(packet);
+    sendMessage(msgpackEncoder.encode(packet));
+  }
+
+  function sendMessage(message: Uint8Array) {
     wsServer?.clients.forEach((client) => {
+      client.send(message);
+    });
+    wssServer?.clients.forEach((client) => {
       client.send(message);
     });
   }
