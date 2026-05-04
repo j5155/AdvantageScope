@@ -102,7 +102,7 @@ window.userTap = () => {
 
 export function sendHostMessage(name: string, data?: any) {
   if (!ios) {
-    return
+    return;
   }
   let message: NamedMessage = { name: name, data: data };
   try {

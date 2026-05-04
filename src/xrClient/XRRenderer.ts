@@ -33,8 +33,8 @@ import RobotManager from "../shared/renderers/field3d/objectManagers/RobotManage
 import TrajectoryManager from "../shared/renderers/field3d/objectManagers/TrajectoryManager";
 import { Units } from "../shared/units";
 import { clampValue, wrapRadians } from "../shared/util";
-import { sendHostMessage } from "./xrClient";
 import XRCamera from "./XRCamera";
+import { sendHostMessage } from "./xrClient";
 export default class XRRenderer {
   private MATERIAL_SPECULAR: THREE.Color = new THREE.Color(0x000000);
   private MATERIAL_SHININESS = 0;
@@ -69,8 +69,7 @@ export default class XRRenderer {
   private fieldStagedPieces: THREE.Object3D | null = null;
   private fieldPieces: { [key: string]: THREE.Mesh } = {};
   private controller: THREE.XRTargetRaySpace | null = null;
-  private text3d: THREE.Object3D;
-  private textcanvas: HTMLCanvasElement;
+  private text3d: THREE.Object3D | null = null;
   private lastCalibrationText: string = "";
 
   private objectManagers: {
@@ -89,7 +88,7 @@ export default class XRRenderer {
   private lastAssetsString: string = "";
 
   constructor(ios: boolean) {
-    this.ios = ios
+    this.ios = ios;
     this.canvas = document.getElementsByTagName("canvas")[0] as HTMLCanvasElement;
     this.spinner = document.getElementsByClassName("spinner-cubes-container")[0] as HTMLElement;
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, alpha: true });
@@ -105,6 +104,7 @@ export default class XRRenderer {
       document.body.appendChild(XRButton.createButton(this.renderer));
       this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20); //new XRCamera();
       this.camera.position.set(0, 1.6, 0);
+      this.scene.add(this.camera); // camera only shown on non-IOS, so text display/gui attached to it is too
       this.controller = this.renderer.xr.getController(0);
       this.controller.addEventListener("selectstart", () => this.userTap());
       this.scene.add(this.controller);
@@ -180,16 +180,6 @@ export default class XRRenderer {
         )
       );
     }
-    // Create text renderer
-    this.textcanvas = document.createElement('canvas');
-    let texture = new THREE.CanvasTexture(this.textcanvas);
-    let material = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true
-    });
-    this.text3d = new THREE.Sprite(material);
-    this.text3d.translateZ(-1.0);
-    this.camera.add(this.text3d);
   }
 
   resetCalibration() {
@@ -219,31 +209,51 @@ export default class XRRenderer {
     if (this.ios) {
       sendHostMessage("setCalibrationText", text);
     } else if (text != this.lastCalibrationText) {
-      this.lastCalibrationText = text
+      this.lastCalibrationText = text;
+      this.text3d?.removeFromParent();
+      this.text3d = null;
+      if (text === "") return; // empty text deletes object
       const borderSize = 2;
-      const font = "12px bold sans-serif";
-      let ctx = this.textcanvas.getContext('2d')
-      if (ctx === null) {
-        return
-      }
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      const textsize_px = 40;
+      const font = textsize_px + "px bold sans-serif";
+      const textBaseScale = 0.001;
+      let ctx = document.createElement("canvas").getContext("2d");
+      if (ctx === null) return;
 
       ctx.font = font;
+
       // measure how long the text will be
       const doubleBorderSize = borderSize * 2;
       const width = ctx.measureText(text).width + doubleBorderSize;
-      const height = 12 + doubleBorderSize;
+      const height = textsize_px + doubleBorderSize;
       ctx.canvas.width = width;
       ctx.canvas.height = height;
 
       // need to set font again after resizing canvas
       ctx.font = font;
-      ctx.textBaseline = 'top';
+      ctx.textBaseline = "top";
 
-      ctx.fillStyle = 'blue';
-      ctx.fillRect(0, 0, width, height);
-      ctx.fillStyle = 'white';
+      //ctx.fillStyle = 'blue';
+      //ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = "white";
       ctx.fillText(text, borderSize, borderSize);
+
+      let texture = new THREE.CanvasTexture(ctx.canvas);
+      texture.minFilter = THREE.LinearFilter;
+      texture.wrapS = THREE.ClampToEdgeWrapping;
+      texture.wrapT = THREE.ClampToEdgeWrapping;
+      let material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true
+      });
+
+      this.text3d = new THREE.Sprite(material);
+      //this.scene.add(this.text3d);
+
+      this.text3d.scale.x = ctx.canvas.width * textBaseScale;
+      this.text3d.scale.y = ctx.canvas.height * textBaseScale;
+      this.camera.add(this.text3d);
+      this.text3d.position.set(0.0, -0.4, -1.0);
     }
   }
 
@@ -547,7 +557,7 @@ export default class XRRenderer {
     if (isCalibrating && raycastUnreliable) {
       calibrationText = "$TRACKING_WARNING"; // Special indicator to display warning about poor tracking
     }
-    this.setCalibrationText(calibrationText)
+    this.setCalibrationText(calibrationText);
     if (!isCalibrating && this.lastIsCalibrating) {
       sendHostMessage("showControls", false);
     }
