@@ -1,7 +1,7 @@
 {
   "name": "advantagescope",
   "productName": "AdvantageScope",
-  "version": "26.0.1",
+  "version": "26.0.2",
   "description": "Robot telemetry application",
   "author": {
     "name": "Littleton Robotics",
@@ -12,12 +12,12 @@
   "main": "bundles/main.js",
   "scripts": {
     "start": "electron bundles/main.js",
-    "compile": "rolldown -c rolldown.config.mjs --configMain && rolldown -c rolldown.config.mjs --configLargeRenderers && rolldown -c rolldown.config.mjs --configSmallRenderers && rolldown -c rolldown.config.mjs --configWorkers && rolldown -c rolldown.config.mjs --configXR",
+    "compile": "rolldown -c --configMain && rolldown -c --configRenderers && rolldown -c --configWorkers && rolldown -c --configXR",
     "build": "npm run compile && npm run wasm:compile && npm run docs:build-embed && electron-builder build",
     "build-linux": "npm run compile && npm run wasm:compile && npm run docs:build-embed && electron-builder build -c.electronVersion=37.10.3",
     "fast-build": "npm run compile && npm run wasm:compile && npm run docs:build-embed && electron-builder build --dir",
-    "watch": "rolldown -c rolldown.config.mjs -w",
-    "download-owlet": "rolldown -c rolldown.config.mjs --configRunOwletDownload && node runOwletDownload.js",
+    "watch": "rolldown -c -w",
+    "download-owlet": "rolldown -c --configRunOwletDownload && node runOwletDownload.js",
     "format": "license-check-and-add add -f file-header-config.json && prettier --write .",
     "check-format": "license-check-and-add check -f file-header-config.json && prettier --check .",
     "wasm:compile": "node wasmCompile.mjs",
@@ -64,7 +64,6 @@
     "protobufjs": "^7.2.5",
     "qr-code-styling": "^1.8.4",
     "rolldown": "1.0.0-rc.16",
-    "rollup": "^3.29.2",
     "rollup-plugin-cleanup": "^3.2.1",
     "rollup-plugin-re": "^1.0.7",
     "simple-statistics": "^7.8.7",
@@ -75,7 +74,7 @@
     "typescript": "5.6.3"
   },
   "dependencies": {
-    "@rev-robotics/revlog-converter": "^1.0.3",
+    "@rev-robotics/revlog-converter": "^1.0.5",
     "@types/emscripten": "^1.39.13",
     "@types/ws": "^8.5.13",
     "basic-ftp": "^5.0.5",
