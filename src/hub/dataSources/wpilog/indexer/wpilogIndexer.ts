@@ -10,7 +10,7 @@ export async function run(
   timestampRangeCallback: (min: number, max: number) => void,
   recordCallback: (entry: number, position: number) => void
 ) {
-  self.importScripts("./hub$wpilogIndexer.js");
+  self.importScripts("./wpilogIndexer.js");
   await new Promise<void>((resolve) => {
     Module.onRuntimeInitialized = resolve;
   });
