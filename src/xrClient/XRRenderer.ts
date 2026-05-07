@@ -182,7 +182,7 @@ export default class XRRenderer {
     this.cursor.add(
       new THREE.Mesh(
         new THREE.CircleGeometry(0.05, 64),
-        new THREE.MeshPhongMaterial({ color: "yellow", transparent: true, opacity: 0.02, side: THREE.DoubleSide })
+        new THREE.MeshPhongMaterial({ color: "yellow", transparent: true, opacity: 0.1, side: THREE.DoubleSide })
       ).rotateX(Math.PI / 2)
     );
     this.cursor.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
