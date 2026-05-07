@@ -115,6 +115,6 @@ export function sendHostMessage(name: string, data?: any) {
 
 function renderWebXR(time: DOMHighResTimeStamp, frame: XRFrame) {
   if (settings !== null && command !== null) {
-    renderer.render(renderer.webXrStateToXRFrameState(), settings, command, assets);
+    renderer.render(renderer.webXrStateToXRFrameState(frame), settings, command, assets);
   }
 }

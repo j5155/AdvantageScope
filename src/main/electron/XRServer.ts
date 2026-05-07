@@ -152,14 +152,15 @@ export namespace XRServer {
     ipAddresses.forEach((ip) => {
       ipAltNames.push({ type: 7, value: ip } as SubjectAltNameEntry);
     });
-
+    // todo: store and reuse certificate so users only have to trust once
     const pems = await selfsigned.generate([{ name: "commonName", value: "localhost" }], {
       extensions: [
         {
           name: "subjectAltName",
           altNames: ipAltNames
         }
-      ]
+      ],
+      notAfterDate: new Date("2038-01-01")
     });
     const options = {
       key: pems.private,

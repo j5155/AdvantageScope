@@ -68,7 +68,9 @@ export default class XRRenderer {
   private fieldCarpet: THREE.Object3D | null = null;
   private fieldStagedPieces: THREE.Object3D | null = null;
   private fieldPieces: { [key: string]: THREE.Mesh } = {};
-  private controller: THREE.XRTargetRaySpace | null = null;
+  private controller0: THREE.XRTargetRaySpace | null = null;
+  private controller1: THREE.XRTargetRaySpace | null = null;
+  private activeController: THREE.XRTargetRaySpace | null = null;
   private text3d: THREE.Object3D | null = null;
   private lastCalibrationText: string = "";
 
@@ -86,6 +88,9 @@ export default class XRRenderer {
   private lastIsFTC: boolean | null = null;
   private lastCoordinateSystem: CoordinateSystem | null = null;
   private lastAssetsString: string = "";
+  private hitTestSourceRequested = false;
+  private hitTestSource: XRHitTestSource | null = null;
+  private forceHitTest = false
 
   constructor(ios: boolean) {
     this.ios = ios;
@@ -101,13 +106,30 @@ export default class XRRenderer {
     if (this.ios) {
       this.camera = new XRCamera();
     } else {
-      document.body.appendChild(XRButton.createButton(this.renderer));
-      this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20); //new XRCamera();
+      document.body.appendChild(XRButton.createButton(this.renderer, { optionalFeatures: ["hit-test"] }));
+      this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
       this.camera.position.set(0, 1.6, 0);
       this.scene.add(this.camera); // camera only shown on non-IOS, so text display/gui attached to it is too
-      this.controller = this.renderer.xr.getController(0);
-      this.controller.addEventListener("selectstart", () => this.userTap());
-      this.scene.add(this.controller);
+
+      this.controller0 = this.renderer.xr.getController(0);
+      this.controller1 = this.renderer.xr.getController(1);
+      this.scene.add(this.controller0);
+      this.scene.add(this.controller1);
+      this.controller0.addEventListener("selectstart", () => {
+        if (this.activeController != this.controller0) {
+          this.activeController = this.controller0
+        } else {
+          this.userTap()
+        }
+      });
+      this.controller1.addEventListener("selectstart", () => {
+        if (this.activeController != this.controller1) {
+          this.activeController = this.controller1
+        } else {
+          this.userTap()
+        }
+      });
+      this.activeController = this.controller0
     }
 
     this.composer = new EffectComposer(this.renderer);
@@ -257,16 +279,64 @@ export default class XRRenderer {
     }
   }
 
-  public webXrStateToXRFrameState(): XRFrameState {
+  public webXrStateToXRFrameState(frame: XRFrame): XRFrameState {
     let cameraPos: Translation3d = [this.camera.position.x, this.camera.position.y, this.camera.position.z];
 
     let raycast: RaycastResult = { isValid: false };
-    if (this.controller)
-      raycast = {
-        isValid: true,
-        position: [this.controller.position.x, this.controller.position.y, this.controller.position.z],
-        anchorId: "zero"
-      };
+    const xrSession = this.renderer.xr.getSession();
+    if (this.activeController) {
+      // if the first controller is 3D tracked, make the target at the controller's position
+      // (VR headset)
+      if (
+        xrSession?.inputSources.length &&
+        xrSession?.inputSources.length > 0 &&
+        xrSession?.inputSources[0].targetRayMode === "tracked-pointer"
+      ) {
+        raycast = {
+          isValid: true,
+          position: [this.activeController.position.x, this.activeController.position.y, this.activeController.position.z],
+          anchorId: "zero"
+        };
+      } else {
+        // actually do a raycast from the controller
+        // (phone)
+        const referenceSpace = this.renderer.xr.getReferenceSpace();
+        if (xrSession && referenceSpace) {
+          if (!this.hitTestSourceRequested) {
+            xrSession.requestReferenceSpace("viewer").then((referenceSpace) => {
+              if (xrSession.requestHitTestSource) {
+                // ensure the function exists and isn't undefined
+                xrSession.requestHitTestSource({ space: referenceSpace })?.then((source) => {
+                  this.hitTestSource = source
+                })
+              }
+            });
+
+            xrSession.addEventListener("end", () => {
+              this.hitTestSourceRequested = false;
+              this.hitTestSource = null;
+            });
+
+            this.hitTestSourceRequested = true;
+          }
+
+          if (this.hitTestSource) {
+            const hitTestResults = frame.getHitTestResults(this.hitTestSource);
+            // sorted by distance, 0 is closest
+            if (hitTestResults.length > 0) {
+              let pose = hitTestResults[0].getPose(referenceSpace);
+              if (pose) {
+                raycast = {
+                  isValid: true,
+                  position: [pose.transform.position.x, pose.transform.position.y, pose.transform.position.z],
+                  anchorId: "zero"
+                };
+              }
+            }
+          }
+        }
+      }
+    }
     return {
       camera: {
         position: cameraPos,
