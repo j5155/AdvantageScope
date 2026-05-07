@@ -105,6 +105,24 @@ export default class XRRenderer {
     this.renderer.setClearAlpha(1.0);
     this.renderer.setClearColor(new THREE.Color(0), 0);
     this.scene = new THREE.Scene();
+
+    // Create coordinate groups
+    this.fieldRoot = new THREE.Group();
+    this.scene.add(this.fieldRoot);
+    this.wpilibCoordinateGroup = new THREE.Group();
+    this.fieldRoot.add(this.wpilibCoordinateGroup);
+    this.wpilibCoordinateGroup.rotateX(-Math.PI / 2);
+    this.wpilibFieldCoordinateGroup = new THREE.Group();
+    this.wpilibCoordinateGroup.add(this.wpilibFieldCoordinateGroup);
+
+    // Add lights
+    this.ambientLight = new THREE.AmbientLight(0xd4d4d4);
+    this.scene.add(this.ambientLight);
+    this.spotLight = new THREE.SpotLight(0xffffff, 1, 30, 45 * (Math.PI / 180), 0.2, 2);
+    this.spotLight.position.set(0, 15, 0);
+    this.spotLight.target.position.set(0, 0, 0);
+    this.fieldRoot.add(this.spotLight, this.spotLight.target);
+
     if (this.ios) {
       this.camera = new XRCamera();
     } else {
@@ -136,12 +154,12 @@ export default class XRRenderer {
       this.xrLight = new XREstimatedLight(this.renderer);
       this.xrLight.addEventListener("estimationstart",() => {
         this.scene.add( this.xrLight! );
-        this.scene.remove(this.ambientLight);
-        this.scene.remove(this.spotLight);
+        this.fieldRoot.remove(this.ambientLight);
+        this.fieldRoot.remove(this.spotLight);
       })
       this.xrLight.addEventListener("estimationend",() => {
-        this.scene.add(this.ambientLight);
-        this.scene.add(this.spotLight);
+        this.fieldRoot.add(this.ambientLight);
+        this.fieldRoot.add(this.spotLight);
         this.scene.remove(this.xrLight!);
       })
     }
@@ -151,23 +169,6 @@ export default class XRRenderer {
     this.filmPass = new FilmPass(1, false);
     this.composer.addPass(this.filmPass);
     this.composer.addPass(new OutputPass());
-
-    // Create coordinate groups
-    this.fieldRoot = new THREE.Group();
-    this.scene.add(this.fieldRoot);
-    this.wpilibCoordinateGroup = new THREE.Group();
-    this.fieldRoot.add(this.wpilibCoordinateGroup);
-    this.wpilibCoordinateGroup.rotateX(-Math.PI / 2);
-    this.wpilibFieldCoordinateGroup = new THREE.Group();
-    this.wpilibCoordinateGroup.add(this.wpilibFieldCoordinateGroup);
-
-    // Add lights
-    this.ambientLight = new THREE.AmbientLight(0xd4d4d4);
-    this.scene.add(this.ambientLight);
-    this.spotLight = new THREE.SpotLight(0xffffff, 1, 30, 45 * (Math.PI / 180), 0.2, 2);
-    this.spotLight.position.set(0, 15, 0);
-    this.spotLight.target.position.set(0, 0, 0);
-    this.fieldRoot.add(this.spotLight, this.spotLight.target);
 
     // Create cursor
     this.cursor = new THREE.Group();
