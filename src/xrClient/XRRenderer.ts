@@ -90,7 +90,7 @@ export default class XRRenderer {
   private lastAssetsString: string = "";
   private hitTestSourceRequested = false;
   private hitTestSource: XRHitTestSource | null = null;
-  private forceHitTest = false
+  private taps = 0;
 
   constructor(ios: boolean) {
     this.ios = ios;
@@ -214,8 +214,14 @@ export default class XRRenderer {
   }
 
   userTap() {
-    if (this.markedPoints.length > 4 && !this.ios) {
-      this.resetCalibration();
+    if (!this.ios && !this.lastIsCalibrating) {
+      if (this.taps === 0) {
+        setTimeout(() => { this.taps = 0},1000)
+      }
+      this.taps += 1
+      if (this.taps == 2) {
+        this.resetCalibration();
+      }
       return;
     }
     // Add a new marked point
@@ -235,7 +241,6 @@ export default class XRRenderer {
       this.text3d?.removeFromParent();
       this.text3d = null;
       if (text === "") return; // empty text deletes object
-      const borderSize = 2;
       const textsize_px = 40;
       const font = textsize_px + "px bold sans-serif";
       const textBaseScale = 0.001;
@@ -243,22 +248,21 @@ export default class XRRenderer {
       if (ctx === null) return;
 
       ctx.font = font;
+      let lines = text.split("\n")
 
       // measure how long the text will be
-      const doubleBorderSize = borderSize * 2;
-      const width = ctx.measureText(text).width + doubleBorderSize;
-      const height = textsize_px + doubleBorderSize;
+      const width = lines.map((text) => ctx.measureText(text).width).reduce((a,b) => Math.max(a,b)); // todo add margins?
+      const height = textsize_px * lines.length + 5 * lines.length; // arbitrary spacing
       ctx.canvas.width = width;
       ctx.canvas.height = height;
 
       // need to set font again after resizing canvas
       ctx.font = font;
       ctx.textBaseline = "top";
+      ctx.textAlign = "center";
 
-      //ctx.fillStyle = 'blue';
-      //ctx.fillRect(0, 0, width, height);
       ctx.fillStyle = "white";
-      ctx.fillText(text, borderSize, borderSize);
+      lines.forEach((text,index) => ctx.fillText(text, width / 2, textsize_px * index + 5 * index));
 
       let texture = new THREE.CanvasTexture(ctx.canvas);
       texture.minFilter = THREE.LinearFilter;
@@ -270,10 +274,13 @@ export default class XRRenderer {
       });
 
       this.text3d = new THREE.Sprite(material);
-      //this.scene.add(this.text3d);
 
       this.text3d.scale.x = ctx.canvas.width * textBaseScale;
       this.text3d.scale.y = ctx.canvas.height * textBaseScale;
+      // Pin to camera
+      // Camera not added to scene on iOS, so doesn't display anything
+      // Set position hand-tuned to look reasonably fine on Android and VR
+      // Pinning UI elements to the camera is slightly weird in VR, but it's much easier than the alternatives
       this.camera.add(this.text3d);
       this.text3d.position.set(0.0, -0.4, -1.0);
     }
@@ -626,6 +633,9 @@ export default class XRRenderer {
     }
     if (isCalibrating && raycastUnreliable) {
       calibrationText = "$TRACKING_WARNING"; // Special indicator to display warning about poor tracking
+    }
+    if (isCalibrating && !this.ios) {
+      calibrationText += "\nDouble tap to reset calibration."
     }
     this.setCalibrationText(calibrationText);
     if (!isCalibrating && this.lastIsCalibrating) {
