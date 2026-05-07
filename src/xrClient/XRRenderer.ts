@@ -126,7 +126,9 @@ export default class XRRenderer {
     if (this.ios) {
       this.camera = new XRCamera();
     } else {
-      document.body.appendChild(XRButton.createButton(this.renderer, { optionalFeatures: ["hit-test","light-estimation"] }));
+      document.body.appendChild(
+        XRButton.createButton(this.renderer, { optionalFeatures: ["hit-test", "light-estimation", "camera-access"] })
+      );
       this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
       this.camera.position.set(0, 1.6, 0);
       this.scene.add(this.camera); // camera only shown on non-IOS, so text display/gui attached to it is too
@@ -137,31 +139,31 @@ export default class XRRenderer {
       this.scene.add(this.controller1);
       this.controller0.addEventListener("selectstart", () => {
         if (this.activeController != this.controller0) {
-          this.activeController = this.controller0
+          this.activeController = this.controller0;
         } else {
-          this.userTap()
+          this.userTap();
         }
       });
       this.controller1.addEventListener("selectstart", () => {
         if (this.activeController != this.controller1) {
-          this.activeController = this.controller1
+          this.activeController = this.controller1;
         } else {
-          this.userTap()
+          this.userTap();
         }
       });
-      this.activeController = this.controller0
+      this.activeController = this.controller0;
 
       this.xrLight = new XREstimatedLight(this.renderer);
-      this.xrLight.addEventListener("estimationstart",() => {
-        this.scene.add( this.xrLight! );
+      this.xrLight.addEventListener("estimationstart", () => {
+        this.scene.add(this.xrLight!);
         this.fieldRoot.remove(this.ambientLight);
         this.fieldRoot.remove(this.spotLight);
-      })
-      this.xrLight.addEventListener("estimationend",() => {
+      });
+      this.xrLight.addEventListener("estimationend", () => {
         this.fieldRoot.add(this.ambientLight);
         this.fieldRoot.add(this.spotLight);
         this.scene.remove(this.xrLight!);
-      })
+      });
     }
 
     this.composer = new EffectComposer(this.renderer);
@@ -231,9 +233,11 @@ export default class XRRenderer {
   userTap() {
     if (!this.ios && !this.lastIsCalibrating) {
       if (this.taps === 0) {
-        setTimeout(() => { this.taps = 0},1000)
+        setTimeout(() => {
+          this.taps = 0;
+        }, 1000);
       }
-      this.taps += 1
+      this.taps += 1;
       if (this.taps == 2) {
         this.resetCalibration();
       }
@@ -263,10 +267,10 @@ export default class XRRenderer {
       if (ctx === null) return;
 
       ctx.font = font;
-      let lines = text.split("\n")
+      let lines = text.split("\n");
 
       // measure how long the text will be
-      const width = lines.map((text) => ctx.measureText(text).width).reduce((a,b) => Math.max(a,b));
+      const width = lines.map((text) => ctx.measureText(text).width).reduce((a, b) => Math.max(a, b));
       const height = textsize_px * lines.length + 5 * lines.length; // arbitrary spacing
       ctx.canvas.width = width;
       ctx.canvas.height = height;
@@ -277,7 +281,7 @@ export default class XRRenderer {
       ctx.textAlign = "center";
 
       ctx.fillStyle = "white";
-      lines.forEach((text,index) => ctx.fillText(text, width / 2, textsize_px * index + 5 * index));
+      lines.forEach((text, index) => ctx.fillText(text, width / 2, textsize_px * index + 5 * index));
 
       let texture = new THREE.CanvasTexture(ctx.canvas);
       texture.minFilter = THREE.LinearFilter;
@@ -306,6 +310,19 @@ export default class XRRenderer {
 
     let raycast: RaycastResult = { isValid: false };
     const xrSession = this.renderer.xr.getSession();
+    const referenceSpace = this.renderer.xr.getReferenceSpace();
+    if (referenceSpace) {
+      let views = frame.getViewerPose(referenceSpace)?.views;
+      if (views) {
+        // This API is so new the threejs types don't include it
+        // TODO look at https://www.rossng.eu/posts/2025-08-03-apriltag-detector/ https://github.com/rossng/apriltag-mobile https://immersive-web.github.io/raw-camera-access/
+        // @ts-ignore
+        if (views[0].camera) {
+          // @ts-ignore
+          console.log(views[0].camera); // todo remove
+        }
+      }
+    }
     if (this.activeController) {
       // if the first controller is 3D tracked, make the target at the controller's position
       // (VR headset)
@@ -316,21 +333,24 @@ export default class XRRenderer {
       ) {
         raycast = {
           isValid: true,
-          position: [this.activeController.position.x, this.activeController.position.y, this.activeController.position.z],
+          position: [
+            this.activeController.position.x,
+            this.activeController.position.y,
+            this.activeController.position.z
+          ],
           anchorId: "zero"
         };
       } else {
         // actually do a raycast from the controller
         // (phone)
-        const referenceSpace = this.renderer.xr.getReferenceSpace();
         if (xrSession && referenceSpace) {
           if (!this.hitTestSourceRequested) {
             xrSession.requestReferenceSpace("viewer").then((referenceSpace) => {
               if (xrSession.requestHitTestSource) {
                 // ensure the function exists and isn't undefined
                 xrSession.requestHitTestSource({ space: referenceSpace })?.then((source) => {
-                  this.hitTestSource = source
-                })
+                  this.hitTestSource = source;
+                });
               }
             });
 
@@ -650,7 +670,7 @@ export default class XRRenderer {
       calibrationText = "$TRACKING_WARNING"; // Special indicator to display warning about poor tracking
     }
     if (isCalibrating && !this.ios) {
-      calibrationText += "\nDouble tap to reset calibration."
+      calibrationText += "\nDouble tap to reset calibration.";
     }
     this.setCalibrationText(calibrationText);
     if (!isCalibrating && this.lastIsCalibrating) {
