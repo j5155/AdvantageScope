@@ -7,6 +7,7 @@
 
 import * as THREE from "three";
 import { XRButton } from "three/addons/webxr/XRButton.js";
+import { XREstimatedLight } from "three/addons/webxr/XREstimatedLight.js";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -91,6 +92,7 @@ export default class XRRenderer {
   private hitTestSourceRequested = false;
   private hitTestSource: XRHitTestSource | null = null;
   private taps = 0;
+  private xrLight: XREstimatedLight | null = null;
 
   constructor(ios: boolean) {
     this.ios = ios;
@@ -106,7 +108,7 @@ export default class XRRenderer {
     if (this.ios) {
       this.camera = new XRCamera();
     } else {
-      document.body.appendChild(XRButton.createButton(this.renderer, { optionalFeatures: ["hit-test"] }));
+      document.body.appendChild(XRButton.createButton(this.renderer, { optionalFeatures: ["hit-test","light-estimation"] }));
       this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
       this.camera.position.set(0, 1.6, 0);
       this.scene.add(this.camera); // camera only shown on non-IOS, so text display/gui attached to it is too
@@ -130,6 +132,18 @@ export default class XRRenderer {
         }
       });
       this.activeController = this.controller0
+
+      this.xrLight = new XREstimatedLight(this.renderer);
+      this.xrLight.addEventListener("estimationstart",() => {
+        this.scene.add( this.xrLight! );
+        this.scene.remove(this.ambientLight);
+        this.scene.remove(this.spotLight);
+      })
+      this.xrLight.addEventListener("estimationend",() => {
+        this.scene.add(this.ambientLight);
+        this.scene.add(this.spotLight);
+        this.scene.remove(this.xrLight!);
+      })
     }
 
     this.composer = new EffectComposer(this.renderer);
@@ -251,7 +265,7 @@ export default class XRRenderer {
       let lines = text.split("\n")
 
       // measure how long the text will be
-      const width = lines.map((text) => ctx.measureText(text).width).reduce((a,b) => Math.max(a,b)); // todo add margins?
+      const width = lines.map((text) => ctx.measureText(text).width).reduce((a,b) => Math.max(a,b));
       const height = textsize_px * lines.length + 5 * lines.length; // arbitrary spacing
       ctx.canvas.width = width;
       ctx.canvas.height = height;
