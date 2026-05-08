@@ -61,6 +61,7 @@ export default class XRRenderer {
   private anchors: { [key: string]: THREE.Object3D } = {};
   private markedPoints: THREE.Object3D[] = [];
   private cursor: THREE.Object3D;
+  private cursorPlane: THREE.Object3D;
   private fieldRoot: THREE.Object3D;
   private fieldSizingReference: THREE.Object3D;
   private wpilibCoordinateGroup: THREE.Object3D;
@@ -182,11 +183,12 @@ export default class XRRenderer {
         new THREE.MeshPhongMaterial({ color: "yellow" })
       )
     );
+    this.cursorPlane =new THREE.Mesh(
+      new THREE.CircleGeometry(0.05, 64),
+      new THREE.MeshPhongMaterial({ color: "yellow", transparent: true, opacity: 0.1, side: THREE.DoubleSide })
+    ).rotateX(Math.PI / 2);
     this.cursor.add(
-      new THREE.Mesh(
-        new THREE.CircleGeometry(0.05, 64),
-        new THREE.MeshPhongMaterial({ color: "yellow", transparent: true, opacity: 0.1, side: THREE.DoubleSide })
-      ).rotateX(Math.PI / 2)
+        this.cursorPlane
     );
     this.cursor.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
 
@@ -319,6 +321,7 @@ export default class XRRenderer {
         xrSession?.inputSources.length > 0 &&
         xrSession?.inputSources[0].targetRayMode === "tracked-pointer"
       ) {
+        this.cursorPlane.visible = false;
         raycast = {
           isValid: true,
           position: [
@@ -331,6 +334,7 @@ export default class XRRenderer {
       } else {
         // actually do a raycast from the controller
         // (phone)
+        this.cursorPlane.visible = true;
         const referenceSpace = this.renderer.xr.getReferenceSpace();
         if (xrSession && referenceSpace) {
           if (!this.hitTestSourceRequested) {
