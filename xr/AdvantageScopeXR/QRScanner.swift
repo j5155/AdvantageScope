@@ -38,6 +38,7 @@ class QRScanner {
                 if (value.starts(with: Constants.qrPrefix)) {
                     self.parseURL(value)
                 }
+                // TODO: parse raw IPs
             }
             self.processing = false
         }

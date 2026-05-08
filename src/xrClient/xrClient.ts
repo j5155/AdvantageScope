@@ -45,16 +45,19 @@ window.addEventListener("load", () => {
   } else if (!window.isSecureContext) {
     webxrEnabled = false;
     // don't load renderer; show navigation menu
-    document.getElementById("app-selection")!!.hidden = false
+    document.getElementById("container")!!.hidden = true;
+    document.getElementById("spinner-cubes-container")!!.hidden = true;
+    document.getElementById("app-selection")!!.hidden = false;
+
     // todo test, if doesn't work use extra intent data instead, https://developer.chrome.com/docs/android/intents
     const androidIntentUri = "intent://proxy/?ip=" + location.hostname + "#Intent;scheme=advantagescope;package=" + ANDROID_APP_ID + ";S.browser_fallback_url=" + encodeURI(PLAY_STORE_LINK) +";end"
-    document.getElementById("app-button-android")!!.addEventListener("click", () => location.href = androidIntentUri)
+    document.getElementById("app-button-android")!!.setAttribute("href", androidIntentUri)
     const iosAppClipUri = XR_URL_PREFIX + location.hostname
-    document.getElementById("app-button-ios")!!.addEventListener("click", () => location.href = iosAppClipUri)
+    document.getElementById("app-button-ios")!!.setAttribute("href", iosAppClipUri)
     const oculusUri = "https://oculus.com/open_url/?url=" + encodeURI("https://" + location.hostname + ":" + HTTPS_XR_SERVER_PORT)
-    document.getElementById("app-button-oculus")!!.addEventListener("click", () => location.href = oculusUri)
+    document.getElementById("app-button-oculus")!!.setAttribute("href",oculusUri)
     const selfSignedUri = "https://" + location.hostname + ":" + HTTPS_XR_SERVER_PORT
-    document.getElementById("app-button-selfsigned")!!.addEventListener("click", () => location.href = selfSignedUri)
+    document.getElementById("app-button-selfsigned")!!.setAttribute("href",selfSignedUri)
   } else {
     renderer = new XRRenderer(true);
     renderer.renderer.setAnimationLoop(renderWebXR);
