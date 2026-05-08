@@ -656,7 +656,11 @@ export default class XRRenderer {
         break;
     }
     if (isCalibrating && raycastUnreliable) {
-      calibrationText = "$TRACKING_WARNING"; // Special indicator to display warning about poor tracking
+      if (this.webxrEnabled) {
+        calibrationText = "Move phone to detect environment."
+      } else {
+        calibrationText = "$TRACKING_WARNING"; // iOS: Special indicator to display warning about poor tracking
+      }
     }
     if (isCalibrating && this.webxrEnabled) {
       calibrationText += "\nDouble tap to reset calibration.";
