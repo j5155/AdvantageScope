@@ -49,11 +49,13 @@ window.addEventListener("load", () => {
     document.getElementById("spinner-cubes-container")!!.hidden = true;
     document.getElementById("app-selection")!!.hidden = false;
 
-    // todo test, if doesn't work use extra intent data instead, https://developer.chrome.com/docs/android/intents
-    const androidIntentUri = "intent://proxy/?ip=" + location.hostname + "#Intent;scheme=advantagescope;package=" + ANDROID_APP_ID + ";S.browser_fallback_url=" + encodeURI(PLAY_STORE_LINK) +";end"
+    // https://developer.chrome.com/docs/android/intents
+    const androidIntentUri = "intent://proxy/?url=" + location.hostname +"#Intent;scheme=advantagescope;package=" + ANDROID_APP_ID + ";S.browser_fallback_url=" + encodeURI(PLAY_STORE_LINK) + ";end"
     document.getElementById("app-button-android")!!.setAttribute("href", androidIntentUri)
     const iosAppClipUri = XR_URL_PREFIX + location.hostname
     document.getElementById("app-button-ios")!!.setAttribute("href", iosAppClipUri)
+    // https://developers.meta.com/horizon/documentation/web/web-launch/
+    // todo: add to launching UI too?
     const oculusUri = "https://oculus.com/open_url/?url=" + encodeURI("https://" + location.hostname + ":" + HTTPS_XR_SERVER_PORT)
     document.getElementById("app-button-oculus")!!.setAttribute("href",oculusUri)
     const selfSignedUri = "https://" + location.hostname + ":" + HTTPS_XR_SERVER_PORT
