@@ -40,7 +40,7 @@ export default class XRRenderer {
   private MATERIAL_SPECULAR: THREE.Color = new THREE.Color(0x000000);
   private MATERIAL_SHININESS = 0;
 
-  private ios: Boolean;
+  private webxrEnabled = false;
 
   private readonly canvas: HTMLCanvasElement;
   private spinner: HTMLElement;
@@ -94,12 +94,12 @@ export default class XRRenderer {
   private taps = 0;
   private xrLight: XREstimatedLight | null = null;
 
-  constructor(ios: boolean) {
-    this.ios = ios;
+  constructor(webxrEnabled: boolean) {
+    this.webxrEnabled = webxrEnabled;
     this.canvas = document.getElementsByTagName("canvas")[0] as HTMLCanvasElement;
     this.spinner = document.getElementsByClassName("spinner-cubes-container")[0] as HTMLElement;
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, alpha: true });
-    this.renderer.xr.enabled = !this.ios;
+    this.renderer.xr.enabled = this.webxrEnabled;
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setClearAlpha(1.0);
@@ -123,9 +123,7 @@ export default class XRRenderer {
     this.spotLight.target.position.set(0, 0, 0);
     this.fieldRoot.add(this.spotLight, this.spotLight.target);
 
-    if (this.ios) {
-      this.camera = new XRCamera();
-    } else {
+    if (this.webxrEnabled) {
       document.body.appendChild(
         XRButton.createButton(this.renderer, { optionalFeatures: ["hit-test", "light-estimation"] })
       );
@@ -164,6 +162,9 @@ export default class XRRenderer {
         this.fieldRoot.add(this.spotLight);
         this.scene.remove(this.xrLight!);
       });
+    } else {
+      // ios
+      this.camera = new XRCamera();
     }
 
     this.composer = new EffectComposer(this.renderer);
@@ -231,7 +232,7 @@ export default class XRRenderer {
   }
 
   userTap() {
-    if (!this.ios && !this.lastIsCalibrating) {
+    if (this.webxrEnabled && !this.lastIsCalibrating) {
       if (this.taps === 0) {
         setTimeout(() => {
           this.taps = 0;
@@ -253,7 +254,7 @@ export default class XRRenderer {
   }
 
   setCalibrationText(text: string) {
-    if (this.ios) {
+    if (!this.webxrEnabled) {
       sendHostMessage("setCalibrationText", text);
     } else if (text != this.lastCalibrationText) {
       this.lastCalibrationText = text;
@@ -657,7 +658,7 @@ export default class XRRenderer {
     if (isCalibrating && raycastUnreliable) {
       calibrationText = "$TRACKING_WARNING"; // Special indicator to display warning about poor tracking
     }
-    if (isCalibrating && !this.ios) {
+    if (isCalibrating && this.webxrEnabled) {
       calibrationText += "\nDouble tap to reset calibration.";
     }
     this.setCalibrationText(calibrationText);
@@ -967,11 +968,11 @@ export default class XRRenderer {
     if ((this.robotLoadingCount > 0 || this.isFieldLoading) && !isCalibrating) {
       this.spinner.classList.add("visible");
       this.spinner.classList.add("animating");
-      if (!this.ios) this.setCalibrationText("Downloading models...");
+      if (this.webxrEnabled) this.setCalibrationText("Downloading models...");
     } else if (this.spinner.classList.contains("visible")) {
       this.spinner.classList.remove("visible");
       window.setTimeout(() => this.spinner.classList.remove("animating"), 250);
-      if (!this.ios) this.setCalibrationText("");
+      if (this.webxrEnabled) this.setCalibrationText("");
     }
 
     // Update rendering options from AR state

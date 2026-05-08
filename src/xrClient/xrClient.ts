@@ -22,14 +22,41 @@ let assets: AdvantageScopeAssets | null = null;
 let isRendering = false;
 let serverTimeOffset: number | null = null;
 let socket: WebSocket | null = null;
-let ios = false;
+let webxrEnabled = false;
+
+// can't access ElectronConstants from web
+const XR_NATIVE_HOST_COMPATIBILITY = 0;
+const XR_URL_PREFIX =
+  "https://appclip.apple.com/id?p=org.littletonrobotics.advantagescopexr.Clip&c=" +
+  XR_NATIVE_HOST_COMPATIBILITY +
+  "&a=";
+const XR_SERVER_PORT = 56328;
+const HTTPS_XR_SERVER_PORT = 56329;
+
+//  TODO UPDATE
+const ANDROID_APP_ID = "org.advantagescope.advantagescopexr"
+const PLAY_STORE_LINK = "https://play.google.com/store/apps/details?id=" + ANDROID_APP_ID
+
 
 window.addEventListener("load", () => {
   if (navigator.userAgent.match(/iPad|iPhone|iPod/i)) {
-    ios = true;
-    renderer = new XRRenderer(true);
-  } else {
+    webxrEnabled = false;
     renderer = new XRRenderer(false);
+  } else if (!window.isSecureContext) {
+    webxrEnabled = false;
+    // don't load renderer; show navigation menu
+    document.getElementById("app-selection")!!.hidden = false
+    // todo test, if doesn't work use extra intent data instead, https://developer.chrome.com/docs/android/intents
+    const androidIntentUri = "intent://proxy/?ip=" + location.hostname + "#Intent;scheme=advantagescope;package=" + ANDROID_APP_ID + ";S.browser_fallback_url=" + encodeURI(PLAY_STORE_LINK) +";end"
+    document.getElementById("app-button-android")!!.addEventListener("click", () => location.href = androidIntentUri)
+    const iosAppClipUri = XR_URL_PREFIX + location.hostname
+    document.getElementById("app-button-ios")!!.addEventListener("click", () => location.href = iosAppClipUri)
+    const oculusUri = "https://oculus.com/open_url/?url=" + encodeURI("https://" + location.hostname + ":" + HTTPS_XR_SERVER_PORT)
+    document.getElementById("app-button-oculus")!!.addEventListener("click", () => location.href = oculusUri)
+    const selfSignedUri = "https://" + location.hostname + ":" + HTTPS_XR_SERVER_PORT
+    document.getElementById("app-button-selfsigned")!!.addEventListener("click", () => location.href = selfSignedUri)
+  } else {
+    renderer = new XRRenderer(true);
     renderer.renderer.setAnimationLoop(renderWebXR);
     let url = window.location.href.replace("http://", "ws://").replace("https://", "wss://").concat("ws");
     socket = new WebSocket(url);
@@ -101,7 +128,7 @@ window.userTap = () => {
 };
 
 export function sendHostMessage(name: string, data?: any) {
-  if (!ios) {
+  if (webxrEnabled) {
     return;
   }
   let message: NamedMessage = { name: name, data: data };
@@ -113,7 +140,7 @@ export function sendHostMessage(name: string, data?: any) {
   }
 }
 
-function renderWebXR(time: DOMHighResTimeStamp, frame: XRFrame) {
+function renderWebXR(_: DOMHighResTimeStamp, frame: XRFrame) {
   if (settings !== null && command !== null) {
     renderer.render(renderer.webXrStateToXRFrameState(frame), settings, command, assets);
   }
