@@ -6,7 +6,6 @@
 // at the root directory of this project.
 
 import * as THREE from "three";
-import { XRButton } from "three/addons/webxr/XRButton.js";
 import { XREstimatedLight } from "three/addons/webxr/XREstimatedLight.js";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
@@ -125,9 +124,6 @@ export default class XRRenderer {
     this.fieldRoot.add(this.spotLight, this.spotLight.target);
 
     if (this.webxrEnabled) {
-      document.body.appendChild(
-        XRButton.createButton(this.renderer, { optionalFeatures: ["hit-test", "light-estimation"] })
-      );
       this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
       this.camera.position.set(0, 1.6, 0);
       this.scene.add(this.camera); // camera only shown on non-IOS, so text display/gui attached to it is too
@@ -183,13 +179,11 @@ export default class XRRenderer {
         new THREE.MeshPhongMaterial({ color: "yellow" })
       )
     );
-    this.cursorPlane =new THREE.Mesh(
+    this.cursorPlane = new THREE.Mesh(
       new THREE.CircleGeometry(0.05, 64),
       new THREE.MeshPhongMaterial({ color: "yellow", transparent: true, opacity: 0.1, side: THREE.DoubleSide })
     ).rotateX(Math.PI / 2);
-    this.cursor.add(
-        this.cursorPlane
-    );
+    this.cursor.add(this.cursorPlane);
     this.cursor.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
 
     // Create field sizing reference
@@ -661,7 +655,7 @@ export default class XRRenderer {
     }
     if (isCalibrating && raycastUnreliable) {
       if (this.webxrEnabled) {
-        calibrationText = "Move phone to detect environment."
+        calibrationText = "Move phone to detect environment.";
       } else {
         calibrationText = "$TRACKING_WARNING"; // iOS: Special indicator to display warning about poor tracking
       }

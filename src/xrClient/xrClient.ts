@@ -6,10 +6,11 @@
 // at the root directory of this project.
 
 import { Decoder } from "@msgpack/msgpack";
+import { XRButton } from "three/addons/webxr/XRButton.js";
 import { AdvantageScopeAssets } from "../shared/AdvantageScopeAssets";
 import NamedMessage from "../shared/NamedMessage";
-import { XRPacket, XRFrameState as XRRenderState, XRSettings, XRStreamingMode } from "../shared/XRTypes";
 import { Field3dRendererCommand } from "../shared/renderers/Field3dRenderer";
+import { XRPacket, XRFrameState as XRRenderState, XRSettings, XRStreamingMode } from "../shared/XRTypes";
 import XRRenderer from "./XRRenderer";
 
 const bufferLengthMs = 250;
@@ -34,9 +35,8 @@ const XR_SERVER_PORT = 56328;
 const HTTPS_XR_SERVER_PORT = 56329;
 
 //  TODO UPDATE
-const ANDROID_APP_ID = "org.advantagescope.advantagescopexr"
-const PLAY_STORE_LINK = "https://play.google.com/store/apps/details?id=" + ANDROID_APP_ID
-
+const ANDROID_APP_ID = "org.advantagescope.advantagescopexr";
+const PLAY_STORE_LINK = "https://play.google.com/store/apps/details?id=" + ANDROID_APP_ID;
 
 window.addEventListener("load", () => {
   if (navigator.userAgent.match(/iPad|iPhone|iPod/i)) {
@@ -49,18 +49,26 @@ window.addEventListener("load", () => {
     document.getElementById("spinner-cubes-container")!!.hidden = true;
     document.getElementById("app-selection")!!.hidden = false;
 
+    const selfSignedUri = "https://" + location.hostname + ":" + HTTPS_XR_SERVER_PORT;
+    document.getElementById("app-button-selfsigned")!!.setAttribute("href", selfSignedUri);
     // https://developer.chrome.com/docs/android/intents
-    const androidIntentUri = "intent://proxy/?url=" + location.hostname +"#Intent;scheme=advantagescope;package=" + ANDROID_APP_ID + ";S.browser_fallback_url=" + encodeURI(PLAY_STORE_LINK) + ";end"
-    document.getElementById("app-button-android")!!.setAttribute("href", androidIntentUri)
-    const iosAppClipUri = XR_URL_PREFIX + location.hostname
-    document.getElementById("app-button-ios")!!.setAttribute("href", iosAppClipUri)
+    const androidIntentUri =
+      "intent://proxy/?url=" +
+      location.hostname +
+      "#Intent;scheme=advantagescope;package=" +
+      ANDROID_APP_ID +
+      ";S.browser_fallback_url=" +
+      encodeURI(PLAY_STORE_LINK) +
+      ";end";
+    document.getElementById("app-button-android")!!.setAttribute("href", androidIntentUri);
+    const iosAppClipUri = XR_URL_PREFIX + location.hostname;
+    document.getElementById("app-button-ios")!!.setAttribute("href", iosAppClipUri);
     // https://developers.meta.com/horizon/documentation/web/web-launch/
     // todo: add to launching UI too?
-    const oculusUri = "https://oculus.com/open_url/?url=" + encodeURI("https://" + location.hostname + ":" + HTTPS_XR_SERVER_PORT)
-    document.getElementById("app-button-oculus")!!.setAttribute("href",oculusUri)
-    const selfSignedUri = "https://" + location.hostname + ":" + HTTPS_XR_SERVER_PORT
-    document.getElementById("app-button-selfsigned")!!.setAttribute("href",selfSignedUri)
+    const oculusUri = "https://oculus.com/open_url/?url=" + encodeURI(selfSignedUri);
+    document.getElementById("app-button-oculus")!!.setAttribute("href", oculusUri);
   } else {
+    webxrEnabled = true;
     renderer = new XRRenderer(true);
     renderer.renderer.setAnimationLoop(renderWebXR);
     let url = window.location.href.replace("http://", "ws://").replace("https://", "wss://").concat("ws");
@@ -71,6 +79,37 @@ window.addEventListener("load", () => {
         setCommand(packet, false);
       }
     };
+
+    document.getElementById("spinner-cubes-container")!!.hidden = true;
+    document.getElementById("container")!!.hidden = true;
+
+    // Make custom button instead of using the three.js one so it can be styled
+    let xrButton = document.getElementById("start-xr") as HTMLButtonElement;
+    const optionalFeatures = ["local-floor", "bounded-floor", "layers", "hit-test", "light-estimation"];
+    xrButton.hidden = false;
+    xrButton.onclick = () => {
+      navigator.xr?.isSessionSupported("immersive-ar").then((ar) => {
+        if (ar) {
+          navigator.xr?.requestSession("immersive-ar", { optionalFeatures: optionalFeatures }).then((session) => {
+            session.addEventListener("end", () => {
+              document.location.reload();
+            });
+            renderer.renderer.xr.setSession(session);
+          });
+        } else {
+          // Device supports WebXR but not AR passthrough, such as Apple Vision Pro
+          navigator.xr?.requestSession("immersive-vr", { optionalFeatures: optionalFeatures }).then((session) => {
+            session.addEventListener("end", () => {
+              document.location.reload();
+            });
+            renderer.renderer.xr.setSession(session);
+          });
+        }
+      });
+    };
+    // Create a three.js button and do nothing with it, so Meta Browser adds an open xr button to the tab bar
+    // I think it's hardcoded to look for the three.js one specifically...
+    XRButton.createButton(renderer.renderer, { optionalFeatures: optionalFeatures });
   }
 });
 
