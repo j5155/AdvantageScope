@@ -51,14 +51,14 @@ try {
       outPath = "'bundles/hub$wpilogIndexer.js' ";
     }
     exec(
-      `emcc ${inPath} -o ${outPath} -sEXPORTED_FUNCTIONS=_run,_malloc -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAPF64,HEAPU32 -sALLOW_MEMORY_GROWTH -sMAXIMUM_MEMORY=4294967296 -O3`,
+      `emcc ${inPath} -o ${outPath} -sEXPORT_ES6 -sEXPORT_NAME=mod -sEXPORTED_FUNCTIONS=_run,_malloc -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAPF64,HEAPU32 -sALLOW_MEMORY_GROWTH -sMAXIMUM_MEMORY=4294967296 -O3`,
       (error, stdout, stderr) => {
         console.log(stdout);
         console.error(stderr);
         if (error === null) {
           // Copy to Lite bundles
-          fs.copyFileSync("bundles/hub$wpilogIndexer.js", "lite/static/bundles/hub$wpilogIndexer.js");
-          fs.copyFileSync("bundles/hub$wpilogIndexer.wasm", "lite/static/bundles/hub$wpilogIndexer.wasm");
+          fs.copyFileSync("bundles/hub$wpilogIndexer.js", "lite/static/bundles/wpilogIndexer.js");
+          fs.copyFileSync("bundles/hub$wpilogIndexer.wasm", "lite/static/bundles/wpilogIndexer.wasm");
 
           // Exit successfully
           resolve();

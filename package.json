@@ -12,7 +12,7 @@
   "main": "bundles/main.js",
   "scripts": {
     "start": "electron bundles/main.js",
-    "compile": "rolldown -c --configMain && rolldown -c --configLargeRenderers && rolldown -c --configSmallRenderers && rolldown -c --configWorkers && rolldown -c --configXR",
+    "compile": "rolldown -c --configMain && rolldown -c --configAppBundles && rolldown -c --configXR",
     "build": "npm run compile && npm run wasm:compile && npm run docs:build-embed && electron-builder build",
     "build-linux": "npm run compile && npm run wasm:compile && npm run docs:build-embed && electron-builder build -c.electronVersion=37.10.3",
     "fast-build": "npm run compile && npm run wasm:compile && npm run docs:build-embed && electron-builder build --dir",
