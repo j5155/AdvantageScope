@@ -51,7 +51,7 @@ try {
       outPath = "'bundles/hub$wpilogIndexer.js' ";
     }
     exec(
-      `emcc ${inPath} -o ${outPath} -sEXPORTED_FUNCTIONS=_run,_malloc -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAPF64,HEAPU32 -sALLOW_MEMORY_GROWTH -sMAXIMUM_MEMORY=4294967296 -O3`,
+      `emcc ${inPath} -o ${outPath} -sEXPORT_ES6 -sEXPORTED_FUNCTIONS=_run,_malloc -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAPF64,HEAPU32 -sALLOW_MEMORY_GROWTH -sMAXIMUM_MEMORY=4294967296 -O3`,
       (error, stdout, stderr) => {
         console.log(stdout);
         console.error(stderr);
