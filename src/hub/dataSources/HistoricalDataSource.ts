@@ -142,7 +142,7 @@ export class HistoricalDataSource {
       this.setStatus(HistoricalDataSourceStatus.Error);
       return;
     }
-    this.worker = new Worker("../bundles/" + selectedWorkerName);
+    this.worker = new Worker("../bundles/" + selectedWorkerName, { type: "module" });
     let request: HistoricalDataSource_WorkerRequest = {
       type: "start",
       data: fileContents as Uint8Array[]

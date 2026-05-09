@@ -125,7 +125,7 @@ const mainBundles = isLite
       ]),
       bundle(["preload.ts"], true, false, ["electron"])
     ];
-const rendererBundles = [
+const appBundles = [
   bundle(
     [
       "hub/hub.ts",
@@ -140,15 +140,8 @@ const rendererBundles = [
       "preferences.ts",
       "licenses.ts",
       "download.ts",
-      ...(isLite ? ["uploadAsset.ts"] : ["export.ts"])
-    ],
-    false,
-    false
-  )
-];
-const workerBundles = [
-  bundle(
-    [
+      isLite ? "uploadAsset.ts" : "export.ts",
+
       "hub/dataSources/csv/csvWorker.ts",
       "hub/dataSources/rlog/rlogWorker.ts",
       "hub/dataSources/roadrunnerlog/roadRunnerWorker.ts",
@@ -167,7 +160,7 @@ const runOwletDownload = {
   input: "src/runOwletDownload.ts",
   output: {
     file: "runOwletDownload.js",
-    format: "cjs"
+    format: "es"
   },
   context: "this",
   external: ["download"],
@@ -177,15 +170,12 @@ const runOwletDownload = {
 
 export default (cliArgs) => {
   if (cliArgs.configMain === true) return mainBundles;
-  if (cliArgs.configRenderers === true) return rendererBundles;
-  if (cliArgs.configWorkers === true) return workerBundles;
+  if (cliArgs.configAppBundles === true) return appBundles;
   if (cliArgs.configXR === true) {
     if (isLite) process.exit();
     return xrBundles;
   }
   if (cliArgs.configRunOwletDownload === true) return runOwletDownload;
 
-  return isLite
-    ? [...mainBundles, ...rendererBundles, ...workerBundles]
-    : [...mainBundles, ...rendererBundles, ...workerBundles, ...xrBundles];
+  return isLite ? [...mainBundles, ...appBundles] : [...mainBundles, ...appBundles, ...xrBundles];
 };
