@@ -34,10 +34,12 @@ export const SATELLITE_DEFAULT_HEIGHT = 500;
 
 // XR Server
 export const XR_NATIVE_HOST_COMPATIBILITY = 0;
-export const XR_URL_PREFIX =
-  "https://appclip.apple.com/id?p=org.littletonrobotics.advantagescopexr.Clip&c=" +
+export const XR_APPCLIP_DOMAIN = "https://appclip.apple.com/id"
+export const XR_URL_ARGS =
+  "?p=org.littletonrobotics.advantagescopexr.Clip&c=" +
   XR_NATIVE_HOST_COMPATIBILITY +
   "&a=";
+export const XR_URL_PREFIX = XR_APPCLIP_DOMAIN + XR_URL_ARGS;
 export const XR_SERVER_PORT = 56328;
 export const HTTPS_XR_SERVER_PORT = 56329;
 

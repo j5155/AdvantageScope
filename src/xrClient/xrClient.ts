@@ -39,12 +39,15 @@ const ANDROID_APP_ID = "org.advantagescope.advantagescopexr";
 const PLAY_STORE_LINK = "https://play.google.com/store/apps/details?id=" + ANDROID_APP_ID;
 
 window.addEventListener("load", () => {
-  if (navigator.userAgent.match(/iPad|iPhone|iPod/i)) {
+  if (navigator.userAgent.match(/iPad|iPhone|iPod/i) && !navigator.userAgent.match(/Safari/i)) {
+    // iOS app or app clip
     webxrEnabled = false;
     renderer = new XRRenderer(false);
-  } else if (!window.isSecureContext) {
-    webxrEnabled = false;
+  } else if (!window.isSecureContext || navigator.userAgent.match(/Safari/i)) {
     // don't load renderer; show navigation menu
+    // for some reason safari lies about secure contexts, at least on ios 16? so it's hardcoded
+    // TODO: test on third-party iOS browsers
+    webxrEnabled = false;
     document.getElementById("container")!!.hidden = true;
     document.getElementById("spinner-cubes-container")!!.hidden = true;
     document.getElementById("app-selection")!!.hidden = false;

@@ -16,7 +16,7 @@ import { WebSocketServer } from "ws";
 import { AdvantageScopeAssets } from "../../shared/AdvantageScopeAssets";
 import { Field3dRendererCommand } from "../../shared/renderers/Field3dRenderer";
 import { XRPacket, XRSettings } from "../../shared/XRTypes";
-import { HTTPS_XR_SERVER_PORT, XR_SERVER_PORT, XR_URL_PREFIX } from "./ElectronConstants";
+import { HTTPS_XR_SERVER_PORT, XR_SERVER_PORT, XR_URL_ARGS, XR_URL_PREFIX } from "./ElectronConstants";
 
 export namespace XRServer {
   let httpServer: http.Server | null = null;
@@ -26,11 +26,12 @@ export namespace XRServer {
   let xrSettings: XRSettings | null = null;
   let periodicInterval: NodeJS.Timeout | null = null;
   let ipAddresses: Set<string> = new Set();
+  let selectedIp: string = "";
   const msgpackEncoder = new Encoder();
   export let assetsSupplier: () => AdvantageScopeAssets;
 
   export function getQRText(): string {
-    return XR_URL_PREFIX + Array.from(ipAddresses).join("_");
+    return "http://" + selectedIp + ":" + XR_SERVER_PORT + XR_URL_ARGS + Array.from(ipAddresses).join("_");
   }
 
   export async function start() {
@@ -44,6 +45,23 @@ export namespace XRServer {
         }
       });
     });
+    // SystemCore
+    let guessedIp = ipAddresses.values().find((s) => s.startsWith("172.30."));
+    // Most common LAN
+    if (!guessedIp) {
+      guessedIp = ipAddresses.values().find((s) => s.startsWith("192.168."));
+    }
+    // Less common LAN
+    if (!guessedIp) {
+      guessedIp = ipAddresses.values().find((s) => s.startsWith("10."));
+    }
+    // Just pick something
+    if (!guessedIp && ipAddresses.size > 0) {
+      guessedIp = ipAddresses.values().toArray()[0];
+    }
+    selectedIp = guessedIp!!;
+
+
 
     // Create HTTP server
     const requestListener: http.RequestListener = async (request, response) => {
