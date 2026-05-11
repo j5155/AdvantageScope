@@ -167,7 +167,7 @@ const runOwletDownload = {
   input: "src/runOwletDownload.ts",
   output: {
     file: "runOwletDownload.js",
-    format: "es"
+    format: "cjs"
   },
   context: "this",
   external: ["download"],
@@ -177,7 +177,7 @@ const runOwletDownload = {
 
 export default (cliArgs) => {
   if (cliArgs.configMain === true) return mainBundles;
-  if (cliArgs.configAppBundles === true) return appBundles;
+  if (cliArgs.configApp === true) return appBundles;
   if (cliArgs.configXR === true) {
     if (isLite) process.exit();
     return xrBundles;
