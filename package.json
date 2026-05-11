@@ -12,7 +12,7 @@
   "main": "bundles/main.js",
   "scripts": {
     "start": "electron bundles/main.js",
-    "compile": "rolldown -c --configMain && rolldown -c --configAppBundles && rolldown -c --configXR",
+    "compile": "rolldown -c --configMain && rolldown -c --configApp && rolldown -c --configXR",
     "build": "npm run compile && npm run wasm:compile && npm run docs:build-embed && electron-builder build",
     "build-linux": "npm run compile && npm run wasm:compile && npm run docs:build-embed && electron-builder build -c.electronVersion=37.10.3",
     "fast-build": "npm run compile && npm run wasm:compile && npm run docs:build-embed && electron-builder build --dir",
@@ -63,7 +63,7 @@
     "prettier-plugin-organize-imports": "^4.0.0",
     "protobufjs": "^7.2.5",
     "qr-code-styling": "^1.8.4",
-    "rolldown": "1.0.0-rc.16",
+    "rolldown": "1.0.0",
     "rollup-plugin-cleanup": "^3.2.1",
     "rollup-plugin-re": "^1.0.7",
     "simple-statistics": "^7.8.7",
