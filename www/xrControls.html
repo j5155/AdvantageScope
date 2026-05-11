@@ -26,8 +26,10 @@
     <div class="controls">
       <div class="title">Scan the code to start AdvantageScope XR</div>
       <div class="details">
-        <u>No app installation is needed.</u> Requires an iPhone or iPad connected to the same Wi-Fi network. Check the
+        <u>No app installation is needed.</u> Requires a device connected to the same Wi-Fi network. Check the
         documentation for details.
+        <br />
+        <button class="button" id="send-to-meta-quest">Send to Meta Quest</button>
       </div>
       <table>
         <tr>
@@ -40,13 +42,20 @@
             </select>
           </td>
         </tr>
-        <!-- TODO IP SELECTION -->
         <tr>
           <td class="right">Streaming</td>
           <td colspan="2">
             <select name="streaming-mode">
               <option value="0">Smooth</option>
               <option value="1">Low Latency</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td class="right">Host IP</td>
+          <td colspan="2">
+            <select name="host-ip">
+              <option value="legacy-ios">Legacy iOS</option>
             </select>
           </td>
         </tr>

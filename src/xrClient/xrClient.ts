@@ -42,7 +42,7 @@ window.addEventListener("load", () => {
   let iosApp = true;
   try {
     // @ts-expect-error
-    let iosApp = window.webkit.messageHandlers.asxr
+    let iosApp = window.webkit.messageHandlers.asxr;
   } catch (e) {
     iosApp = false;
   }
@@ -72,7 +72,6 @@ window.addEventListener("load", () => {
     const iosAppClipUri = XR_URL_PREFIX + location.hostname;
     document.getElementById("app-button-ios")!!.setAttribute("href", iosAppClipUri);
     // https://developers.meta.com/horizon/documentation/web/web-launch/
-    // todo: add to launching UI too?
     const oculusUri = "https://oculus.com/open_url/?url=" + encodeURI(selfSignedUri);
     document.getElementById("app-button-oculus")!!.setAttribute("href", oculusUri);
   } else {

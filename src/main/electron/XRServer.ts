@@ -16,7 +16,7 @@ import { WebSocketServer } from "ws";
 import { AdvantageScopeAssets } from "../../shared/AdvantageScopeAssets";
 import { Field3dRendererCommand } from "../../shared/renderers/Field3dRenderer";
 import { XRPacket, XRSettings } from "../../shared/XRTypes";
-import { HTTPS_XR_SERVER_PORT, XR_SERVER_PORT, XR_URL_ARGS, XR_URL_PREFIX } from "./ElectronConstants";
+import { HTTPS_XR_SERVER_PORT, XR_APPCLIP_DOMAIN, XR_SERVER_PORT, XR_URL_ARGS } from "./ElectronConstants";
 
 export namespace XRServer {
   let httpServer: http.Server | null = null;
@@ -25,12 +25,15 @@ export namespace XRServer {
   let wssServer: WebSocketServer | null = null;
   let xrSettings: XRSettings | null = null;
   let periodicInterval: NodeJS.Timeout | null = null;
-  let ipAddresses: Set<string> = new Set();
-  let selectedIp: string = "";
+  export let ipAddresses: Set<string> = new Set();
+  export let selectedIp: string = "";
   const msgpackEncoder = new Encoder();
   export let assetsSupplier: () => AdvantageScopeAssets;
 
   export function getQRText(): string {
+    if (selectedIp == "legacy-ios") {
+      return XR_APPCLIP_DOMAIN + XR_URL_ARGS + Array.from(ipAddresses).join("_");
+    }
     return "http://" + selectedIp + ":" + XR_SERVER_PORT + XR_URL_ARGS + Array.from(ipAddresses).join("_");
   }
 
@@ -60,8 +63,6 @@ export namespace XRServer {
       guessedIp = ipAddresses.values().toArray()[0];
     }
     selectedIp = guessedIp!!;
-
-
 
     // Create HTTP server
     const requestListener: http.RequestListener = async (request, response) => {
@@ -225,6 +226,7 @@ export namespace XRServer {
 
   export function setXRSettings(settings: XRSettings) {
     xrSettings = settings;
+    selectedIp = settings.selectedIp;
 
     // Broadcast to all clients
     let packet: XRPacket = {

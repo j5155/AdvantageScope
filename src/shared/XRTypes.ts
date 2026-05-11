@@ -15,6 +15,7 @@ export type XRSettings = {
   showCarpet: boolean;
   showField: boolean;
   showRobots: boolean;
+  selectedIp: string;
 };
 
 export enum XRCalibrationMode {
