@@ -26,7 +26,7 @@ AdvantageScope XR is supported on many devices, but is more stable for devices w
 <img src={Image1} alt="XR button" height="450" />
 
 2. The **XR controls window** will open, with a QR code and [options](#options) to customize the AR experience. Ensure that the 'Host IP' option is set to the correct IP for your network. To cancel the XR session and disconnect any clients, close the controls window.
-
+<!-- TODO: Retake on a light mode Mac (I can't get light mode to work on Linux) -->
 <img src={Image2} alt="XR window" height="350" />
 
 3. Scan the QR code using the **built-in camera app** on the client device, or press the Send to Meta Quest button. (For other VR headsets, manually type the displayed Host IP into the web browser, making sure to include the "http://" at the start.) No app installation is required.
