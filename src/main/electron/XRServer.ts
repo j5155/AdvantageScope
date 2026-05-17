@@ -171,7 +171,9 @@ export namespace XRServer {
     ipAddresses.forEach((ip) => {
       ipAltNames.push({ type: 7, value: ip } as SubjectAltNameEntry);
     });
-    // todo: store and reuse certificate so users only have to trust once
+    // Regenerate certificate every startup
+    // Saving and reusing a certificate would prevent the user from having to trust multiple times,
+    // but would only work while on the same network, so it isn't worth it.
     const pems = await selfsigned.generate([{ name: "commonName", value: "localhost" }], {
       extensions: [
         {

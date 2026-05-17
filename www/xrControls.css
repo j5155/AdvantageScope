@@ -19,8 +19,8 @@ body {
 
 div.qr-container {
   position: absolute;
-  left: 0px;
-  top: 0px;
+  left: 0;
+  top: 0;
   height: 100%;
   max-width: 50%;
   aspect-ratio: 1;
@@ -35,8 +35,8 @@ div.qr-container {
 
 div.controls {
   position: absolute;
-  right: 0px;
-  top: 0px;
+  right: 0;
+  top: 0;
   height: 100%;
   overflow-x: hidden;
   overflow-y: auto;

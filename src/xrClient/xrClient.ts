@@ -31,10 +31,9 @@ const XR_URL_PREFIX =
   "https://appclip.apple.com/id?p=org.littletonrobotics.advantagescopexr.Clip&c=" +
   XR_NATIVE_HOST_COMPATIBILITY +
   "&a=";
-const XR_SERVER_PORT = 56328;
 const HTTPS_XR_SERVER_PORT = 56329;
 
-//  TODO UPDATE
+//  TODO Jonah: Update with published ID/URL of Android app. Also change in docs
 const ANDROID_APP_ID = "org.advantagescope.advantagescopexr";
 const PLAY_STORE_LINK = "https://play.google.com/store/apps/details?id=" + ANDROID_APP_ID;
 
@@ -42,7 +41,7 @@ window.addEventListener("load", () => {
   let iosApp = true;
   try {
     // @ts-expect-error
-    let iosApp = window.webkit.messageHandlers.asxr;
+    window.webkit.messageHandlers.asxr;
   } catch (e) {
     iosApp = false;
   }

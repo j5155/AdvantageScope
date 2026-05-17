@@ -39,13 +39,13 @@ export default class XRRenderer {
   private MATERIAL_SPECULAR: THREE.Color = new THREE.Color(0x000000);
   private MATERIAL_SHININESS = 0;
 
-  private webxrEnabled = false;
+  private readonly webxrEnabled: boolean = false;
 
   private readonly canvas: HTMLCanvasElement;
   private spinner: HTMLElement;
   public renderer: THREE.WebGLRenderer;
   private composer: EffectComposer;
-  private filmPass: FilmPass;
+  private readonly filmPass: FilmPass;
   private resolution = new THREE.Vector2();
 
   private lastCalibrationMode: XRCalibrationMode | null = null;
@@ -53,24 +53,24 @@ export default class XRRenderer {
   private lastRaycastResult: RaycastResult = { isValid: false };
   private lastIsCalibrating = false;
 
-  private scene: THREE.Scene;
-  private camera: THREE.Camera;
-  private ambientLight: THREE.AmbientLight;
-  private spotLight: THREE.SpotLight;
+  private readonly scene: THREE.Scene;
+  private readonly camera: THREE.Camera;
+  private readonly ambientLight: THREE.AmbientLight;
+  private readonly spotLight: THREE.SpotLight;
   private anchors: { [key: string]: THREE.Object3D } = {};
   private markedPoints: THREE.Object3D[] = [];
-  private cursor: THREE.Object3D;
-  private cursorPlane: THREE.Object3D;
-  private fieldRoot: THREE.Object3D;
-  private fieldSizingReference: THREE.Object3D;
-  private wpilibCoordinateGroup: THREE.Object3D;
-  private wpilibFieldCoordinateGroup: THREE.Group; // Field coordinates (origin at driver stations and flipped based on alliance)
+  private readonly cursor: THREE.Object3D;
+  private readonly cursorPlane: THREE.Object3D;
+  private readonly fieldRoot: THREE.Object3D;
+  private readonly fieldSizingReference: THREE.Object3D;
+  private readonly wpilibCoordinateGroup: THREE.Object3D;
+  private readonly wpilibFieldCoordinateGroup: THREE.Group; // Field coordinates (origin at driver stations and flipped based on alliance)
   private field: THREE.Object3D | null = null;
   private fieldCarpet: THREE.Object3D | null = null;
   private fieldStagedPieces: THREE.Object3D | null = null;
   private fieldPieces: { [key: string]: THREE.Mesh } = {};
-  private controller0: THREE.XRTargetRaySpace | null = null;
-  private controller1: THREE.XRTargetRaySpace | null = null;
+  private readonly controller0: THREE.XRTargetRaySpace | null = null;
+  private readonly controller1: THREE.XRTargetRaySpace | null = null;
   private activeController: THREE.XRTargetRaySpace | null = null;
   private text3d: THREE.Object3D | null = null;
   private lastCalibrationText: string = "";
@@ -92,7 +92,7 @@ export default class XRRenderer {
   private hitTestSourceRequested = false;
   private hitTestSource: XRHitTestSource | null = null;
   private taps = 0;
-  private xrLight: XREstimatedLight | null = null;
+  private readonly xrLight: XREstimatedLight | null = null;
 
   constructor(webxrEnabled: boolean) {
     this.webxrEnabled = webxrEnabled;
