@@ -1065,7 +1065,7 @@ export default class XRRenderer {
       this.composer.setSize(viewWidthPx, viewHeightPx);
       this.resolution.set(viewWidthPx, viewHeightPx);
     }
-    if (this.webxrEnabled) {
+    if (!this.webxrEnabled) {
       this.composer.render(1 / 60);
     } else {
       this.renderer.render(this.scene, this.camera);
