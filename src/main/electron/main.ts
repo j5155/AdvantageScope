@@ -6,32 +6,13 @@
 // at the root directory of this project.
 
 import { parseREVLOG } from "@rev-robotics/revlog-converter";
-import { FileInfo, Client as FTPClient, FTPError } from "basic-ftp";
+import { emitTo } from "@tauri-apps/api/event";
+import { Menu, MenuItem, Submenu } from "@tauri-apps/api/menu";
+import { Webview } from "@tauri-apps/api/webview";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { WindowOptions } from "@tauri-apps/api/window";
 import { hex } from "color-convert";
-import {
-  app,
-  BrowserWindow,
-  BrowserWindowConstructorOptions,
-  clipboard,
-  dialog,
-  FileFilter,
-  Menu,
-  MenuItem,
-  MessageChannelMain,
-  MessagePortMain,
-  nativeImage,
-  nativeTheme,
-  powerMonitor,
-  shell,
-  TitleBarOverlay,
-  TouchBar,
-  TouchBarSlider
-} from "electron";
-import fs from "fs";
 import jsonfile from "jsonfile";
-import net from "net";
-import os from "os";
-import path from "path";
 import { Readable } from "stream";
 import { AdvantageScopeAssets } from "../../shared/AdvantageScopeAssets";
 import ButtonRect from "../../shared/ButtonRect";
@@ -51,9 +32,7 @@ import {
   AKIT_PATH_INPUT_PERIOD,
   AKIT_PATH_OUTPUT,
   APP_VERSION,
-  DOWNLOAD_REFRESH_INTERVAL_MS,
   DOWNLOAD_RETRY_DELAY_MS,
-  DOWNLOAD_TIMEOUT_MS,
   FRC_LOG_FOLDER,
   HUB_DEFAULT_HEIGHT,
   HUB_DEFAULT_WIDTH,
@@ -75,36 +54,27 @@ import { XRControls } from "./XRControls";
 import { XRServer } from "./XRServer";
 import { getAssetDownloadStatus, startAssetDownloadLoop } from "./assetDownloader";
 import { createAssetFolders, getUserAssetsPath, loadAssets } from "./assetLoader";
-import {
-  delayBetaSurvey,
-  isAlpha,
-  isBeta,
-  isBetaExpired,
-  isBetaWelcomeComplete,
-  openBetaSurvey,
-  saveBetaWelcomeComplete,
-  shouldPromptBetaSurvey
-} from "./betaUtil";
+import { isAlpha, saveBetaWelcomeComplete, shouldPromptBetaSurvey } from "./betaUtil";
 import { getOwletDownloadStatus, startOwletDownloadLoop } from "./owletDownloadLoop";
 import { checkHootIsPro, convertHoot, CTRE_LICENSE_URL } from "./owletInterface";
 
 // Dynamically load lzma-native to handle platforms without prebuilt binaries
+/*
 let lzma: typeof import("lzma-native") | null = null;
 try {
   lzma = require("lzma-native");
 } catch (e) {}
-
+*/
 // Global variables
-let hubWindows: BrowserWindow[] = []; // Ordered by last focus time (recent first)
-let downloadWindow: BrowserWindow | null = null;
-let prefsWindow: BrowserWindow | null = null;
-let licensesWindow: BrowserWindow | null = null;
-let satelliteWindows: { [id: string]: BrowserWindow[] } = {};
-let windowPorts: { [id: number]: MessagePortMain } = {};
-let hubTouchBarSliders: { [id: number]: TouchBarSlider } = {};
-let hubExportingIds: Set<number> = new Set();
+let hubWindows: WebviewWindow[] = []; // Ordered by last focus time (recent first)
+let downloadWindow: WebviewWindow | null = null;
+let prefsWindow: WebviewWindow | null = null;
+let licensesWindow: WebviewWindow | null = null;
+let satelliteWindows: { [id: string]: WebviewWindow[] } = {};
+//let hubTouchBarSliders: { [id: number]: TouchBarSlider } = {}; // TODO
+let hubExportingIds: Set<string> = new Set();
 let ctreLicensePrompt: Promise<void> | null = null;
-let menuTemplate: (Electron.MenuItemConstructorOptions | Electron.MenuItem)[] | null = null;
+let menu: Menu | null = null;
 
 let stateTracker = new StateTracker();
 let updateChecker = new UpdateChecker();
@@ -119,15 +89,19 @@ let advantageScopeAssets: AdvantageScopeAssets = {
 };
 XRServer.assetsSupplier = () => advantageScopeAssets;
 
+/*
+
 // Live RLOG variables
 let rlogSockets: { [id: number]: net.Socket } = {};
 let rlogSocketTimeouts: { [id: number]: NodeJS.Timeout } = {};
 let rlogDataArrays: { [id: number]: Uint8Array } = {};
 
+ */
+
 // Download variables
-let downloadClient: FTPClient | null = null;
-let downloadRetryTimeout: NodeJS.Timeout | null = null;
-let downloadRefreshInterval: NodeJS.Timeout | null = null;
+//let downloadClient: FTPClient | null = null;
+let downloadRetryTimeout: ReturnType<typeof setTimeout> | null = null;
+let downloadRefreshInterval: ReturnType<typeof setTimeout> | null = null;
 let downloadAddress: string = "";
 let downloadPath: string = "";
 let downloadFileSizeCache: { [id: string]: number } = {};
@@ -142,9 +116,9 @@ let downloadClientIsSaving = false;
  * @param data Arbitrary data to include
  * @returns Whether the operation was successful
  */
-function sendMessage(window: BrowserWindow, name: string, data?: any): boolean {
+function sendMessage(window: WebviewWindow, name: string, data?: any): boolean {
   try {
-    windowPorts[window.id].postMessage({ name: name, data: data });
+    emitTo(window.label, name, data);
   } catch (e) {
     return false;
   }
@@ -152,36 +126,37 @@ function sendMessage(window: BrowserWindow, name: string, data?: any): boolean {
 }
 
 /** Sends the current preferences to all windows (including USB menu bar setting) */
-function sendAllPreferences() {
-  let data: Preferences = jsonfile.readFileSync(PREFS_FILENAME);
+async function sendAllPreferences() {
+  let data: Preferences = jsonfile.readFileSync(PREFS_FILENAME); // TODO
   data.usb = usingUsb;
-  nativeTheme.themeSource = data.theme;
+  //nativeTheme.themeSource = data.theme; // TODO
   hubWindows.forEach((window) => {
-    if (!window.isDestroyed()) {
-      sendMessage(window, "set-preferences", data);
-    }
+    sendMessage(window, "set-preferences", data);
   });
   Object.values(satelliteWindows).forEach((satelliteArray) => {
     satelliteArray.forEach((satellite) => {
-      if (!satellite.isDestroyed()) {
-        sendMessage(satellite, "set-preferences", data);
-      }
+      sendMessage(satellite, "set-preferences", data);
     });
   });
-  if (downloadWindow !== null && !downloadWindow.isDestroyed()) sendMessage(downloadWindow, "set-preferences", data);
-  if (menuTemplate !== null) {
+  if (downloadWindow !== null) sendMessage(downloadWindow, "set-preferences", data);
+  if (menu !== null) {
     let autoString = "Default: " + getLiveModeName(data.liveMode);
-    (
-      (menuTemplate[1].submenu as Electron.MenuItemConstructorOptions[])[2]
-        .submenu as Electron.MenuItemConstructorOptions[]
-    )[0].label = autoString;
-    (
-      (menuTemplate[1].submenu as Electron.MenuItemConstructorOptions[])[3]
-        .submenu as Electron.MenuItemConstructorOptions[]
-    )[0].label = autoString;
-    (menuTemplate[0].submenu as Electron.MenuItemConstructorOptions[])[7].checked = data.userAssetsFolder !== null;
-    let menu = Menu.buildFromTemplate(menuTemplate);
-    Menu.setApplicationMenu(menu);
+    const fileMenu = (await menu.items())[1] as Submenu;
+    const connectRobotMenu = (await fileMenu.items())[2] as Submenu;
+    const robotDefaultItem = (await connectRobotMenu.items())[0] as MenuItem;
+    await robotDefaultItem.setText(autoString);
+
+    const connectSimMenu = (await fileMenu.items())[2] as Submenu;
+    const simDefaultItem = (await connectRobotMenu.items())[0] as MenuItem;
+    await simDefaultItem.setText(autoString);
+
+    const appMenu = (await menu.items())[0] as Submenu;
+    const assetDownloadStatusItem = (await menu.items())[7] as MenuItem;
+    // TODO
+    // also i dont think this ever worked on linux
+    //assetDownloadStatusItem.checked = data.userAssetsFolder !== null;
+
+    menu.setAsWindowMenu(WebviewWindow.getCurrent().window);
   }
 }
 
@@ -189,15 +164,11 @@ function sendAllPreferences() {
 function sendAssets() {
   Object.values(satelliteWindows).forEach((windowCollection) => {
     windowCollection.forEach((window) => {
-      if (!window.isDestroyed()) {
-        sendMessage(window, "set-assets", advantageScopeAssets);
-      }
+      sendMessage(window, "set-assets", advantageScopeAssets);
     });
   });
   hubWindows.forEach((window) => {
-    if (!window.isDestroyed()) {
-      sendMessage(window, "set-assets", advantageScopeAssets);
-    }
+    sendMessage(window, "set-assets", advantageScopeAssets);
   });
 }
 
@@ -1359,9 +1330,9 @@ setInterval(() => {
 }, RLOG_HEARTBEAT_DELAY_MS);
 
 /** Shows a popup to create a new tab on a hub window. */
-function newTabPopup(window: BrowserWindow, rect: ButtonRect) {
+async function newTabPopup(window: WebviewWindow, rect: ButtonRect) {
   if (!hubWindows.includes(window)) return;
-  const newTabMenu = new Menu();
+  const newTabMenu = await Menu.new();
   getAllTabTypes()
     .slice(1)
     .forEach((tabType) => {
@@ -1550,6 +1521,8 @@ function select3DCameraPopup(
  * @param message The received message
  */
 function handleDownloadMessage(message: NamedMessage) {
+  // TODO
+  /*
   if (!downloadWindow) return;
   if (downloadWindow.isDestroyed()) return;
 
@@ -1570,10 +1543,14 @@ function handleDownloadMessage(message: NamedMessage) {
       downloadSave(message.data);
       break;
   }
+
+   */
 }
 
 /** Starts a new FTP connection. */
 async function downloadStart() {
+  // TODO
+  /*
   if (downloadRetryTimeout) clearTimeout(downloadRetryTimeout);
   if (downloadRefreshInterval) clearInterval(downloadRefreshInterval);
   downloadClient?.trackProgress();
@@ -1645,12 +1622,18 @@ async function downloadStart() {
   };
   downloadRefreshInterval = setInterval(readFiles, DOWNLOAD_REFRESH_INTERVAL_MS);
   readFiles();
+
+   */
 }
 
 /** Closes the FTP connection. */
 function downloadStop() {
+  // TODO
+  /*
   downloadClient?.trackProgress();
   downloadClient?.close();
+
+   */
   downloadClientIsSaving = false;
   if (downloadRetryTimeout) clearTimeout(downloadRetryTimeout);
   if (downloadRefreshInterval) clearInterval(downloadRefreshInterval);
@@ -1669,6 +1652,8 @@ function downloadError(errorMessage: string) {
 function downloadSave(files: string[]) {
   if (!downloadWindow) return;
   downloadClientIsSaving = true;
+  // TODO
+  /*
   let selectPromise;
   let firstExtension = path.extname(files[0]);
   if (files.length > 1 || firstExtension === "") {
@@ -1836,6 +1821,8 @@ function downloadSave(files: string[]) {
       }
     }
   });
+
+   */
 }
 
 // CREATE WINDOWS
@@ -2504,30 +2491,31 @@ function createAboutWindow() {
 }
 
 /** Creates a new hub window. */
-function createHubWindow(state?: WindowState) {
-  let prefs: BrowserWindowConstructorOptions = {
+async function createHubWindow(state?: WindowState) {
+  let prefs: WindowOptions = {
     minWidth: 800,
-    minHeight: 400,
-    icon: WINDOW_ICON,
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-      backgroundThrottling: false,
-      webviewTag: true
-    }
+    minHeight: 400
+    //icon: WINDOW_ICON, // TODO
+    //show: false, // TODO
+    //webPreferences: {
+    //preload: path.join(__dirname, "preload.js"),
+    //backgroundThrottling: BackgroundThrottlingPolicy.Disabled, // TODO
+    //webviewTag: true
+    //}
   };
 
   // Manage window state
-  let focusedWindow = BrowserWindow.getFocusedWindow();
+  let focusedWindow = WebviewWindow.getCurrent();
   if (state !== undefined) {
     prefs.x = state.x;
     prefs.y = state.y;
     prefs.width = state.width;
     prefs.height = state.height;
   } else if (focusedWindow !== null) {
-    let bounds = focusedWindow.getBounds();
-    prefs.x = bounds.x + 30;
-    prefs.y = bounds.y + 30;
+    let position = await focusedWindow.position();
+    let bounds = await focusedWindow.innerSize();
+    prefs.x = position.x + 30;
+    prefs.y = position.y + 30;
     prefs.width = bounds.width;
     prefs.height = bounds.height;
   } else {
@@ -2536,6 +2524,8 @@ function createHubWindow(state?: WindowState) {
   }
 
   // Set fancy window effects
+  // TODO
+  /*
   switch (process.platform) {
     case "darwin":
       prefs.vibrancy = "sidebar";
@@ -2564,14 +2554,20 @@ function createHubWindow(state?: WindowState) {
       break;
   }
 
+   */
+
   // Create window
-  let window = new BrowserWindow(prefs);
+  let window = new WebviewWindow(createUUID(), prefs);
   hubWindows.push(window);
+  /*
   if (process.platform === "linux") {
     window.setMenuBarVisibility(false);
   }
 
+   */
+
   // Add touch bar menu
+  /*
   let resetTouchBar = () => {
     let newCreated = false;
     let slider = new TouchBar.TouchBarSlider({
@@ -2619,14 +2615,20 @@ function createHubWindow(state?: WindowState) {
   };
   resetTouchBar();
 
-  // Open docs URLs in browser
+   */
+
+  // Open docs URLs in browser // TODO
+  /*
   window.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url);
     return { action: "deny" };
   });
 
+   */
+
   // Show window when loaded
   let firstLoad = true;
+  /* TODO message handling
   let createPorts = () => {
     const { port1, port2 } = new MessageChannelMain();
     window.webContents.postMessage("port", null, [port1]);
@@ -2637,20 +2639,25 @@ function createHubWindow(state?: WindowState) {
     port2.start();
   };
   createPorts(); // Create ports immediately so messages can be queued
-  window.webContents.on("dom-ready", () => {
+
+   */
+  window.once("tauri://window-created", async () => {
     if (!firstLoad) {
-      createPorts(); // Create ports on reload
-      rlogSockets[window.id]?.destroy(); // Destroy any existing RLOG sockets
+      //createPorts(); // Create ports on reload
+      //rlogSockets[window.id]?.destroy(); // Destroy any existing RLOG sockets
     }
 
     // Launch dev tools
     if (firstLoad && !app.isPackaged) {
-      window.webContents.openDevTools();
+      // TODO
+      //window.webContents.openDevTools();
     }
 
     // Init messages
     sendMessage(window, "set-assets", advantageScopeAssets);
-    sendMessage(window, "set-fullscreen", window.isFullScreen());
+    sendMessage(window, "set-fullscreen", await window.isFullscreen());
+    // TODO
+    /*
     sendMessage(window, "set-battery", powerMonitor.isOnBatteryPower());
     sendMessage(window, "set-version", {
       platform: process.platform,
@@ -2660,12 +2667,18 @@ function createHubWindow(state?: WindowState) {
     });
     sendMessage(window, "show-update-button", updateChecker.getShouldPrompt());
     sendMessage(window, "show-feedback-button", isBeta());
+
+     */
     sendMessage(window, "show-when-ready");
     sendAllPreferences();
     sendActiveSatellites();
+    // TODO
+    /*
     if (fs.existsSync(TYPE_MEMORY_FILENAME)) {
       sendMessage(window, "restore-type-memory", jsonfile.readFileSync(TYPE_MEMORY_FILENAME));
     }
+
+     */
     if (firstLoad && state !== undefined) {
       sendMessage(window, "restore-state", state.state);
     } else {
@@ -2677,6 +2690,8 @@ function createHubWindow(state?: WindowState) {
     firstLoad = false;
 
     // Beta init
+    // TODO
+    /*
     if (isBeta()) {
       if (isBetaExpired()) {
         dialog
@@ -2719,10 +2734,16 @@ function createHubWindow(state?: WindowState) {
             }
           });
       }
+
+
     }
   });
-  window.on("close", (event) => {
-    if (hubExportingIds.has(window.id)) {
+
+     */
+    window.listen("tauri://close-requested", (event) => {
+      if (hubExportingIds.has(await window.sceneIdentifier())) {
+        // TODO
+        /*
       const choice = dialog.showMessageBoxSync(window, {
         type: "info",
         title: "Warning",
@@ -2732,19 +2753,32 @@ function createHubWindow(state?: WindowState) {
         defaultId: 0
       });
       if (choice === 0) event.preventDefault();
-    }
-  });
+
+       */
+      }
+    });
+    // TODO
+    /*
   window.on("enter-full-screen", () => sendMessage(window, "set-fullscreen", true));
   window.on("leave-full-screen", () => sendMessage(window, "set-fullscreen", false));
-  window.on("blur", () => sendMessage(window, "set-focused", false));
-  window.on("focus", () => {
-    sendMessage(window, "set-focused", true);
-    hubWindows.splice(hubWindows.indexOf(window), 1);
-    hubWindows.splice(0, 0, window);
+
+     */
+    window.listen("tauri://blur", () => sendMessage(window, "set-focused", false));
+    window.listen("tauri://focus", () => {
+      sendMessage(window, "set-focused", true);
+      hubWindows.splice(hubWindows.indexOf(window), 1);
+      hubWindows.splice(0, 0, window);
+    });
+    powerMonitor.on("on-ac", () => sendMessage(window, "set-battery", false));
+    powerMonitor.on("on-battery", () => sendMessage(window, "set-battery", true));
+    const webview = new Webview(window, createUUID(), {
+      url: path.join(__dirname, "../www/hub.html"),
+      x: 0, // TODO
+      y: 0,
+      width: prefs.width!!,
+      height: prefs.height!!
+    });
   });
-  powerMonitor.on("on-ac", () => sendMessage(window, "set-battery", false));
-  powerMonitor.on("on-battery", () => sendMessage(window, "set-battery", true));
-  window.loadFile(path.join(__dirname, "../www/hub.html"));
 
   return window;
 }

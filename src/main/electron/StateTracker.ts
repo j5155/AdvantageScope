@@ -5,6 +5,7 @@
 // license that can be found in the LICENSE file
 // at the root directory of this project.
 
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { BrowserWindow, screen } from "electron";
 import fs from "fs";
 import jsonfile from "jsonfile";
@@ -18,8 +19,8 @@ import {
 
 export default class StateTracker {
   private SAVE_PERIOD_MS = 250;
-  private rendererStates: { [id: number]: any } = {};
-  private satelliteUUIDs: { [id: number]: string } = {};
+  private rendererStates: { [id: string]: any } = {};
+  private satelliteUUIDs: { [id: string]: string } = {};
 
   constructor() {
     let lastState = this.getSavedApplicationState(false);
@@ -109,16 +110,16 @@ export default class StateTracker {
   }
 
   /** Returns the cached renderer state for a window. */
-  getRendererState(window: BrowserWindow): any {
-    return this.rendererStates[window.id];
+  async getRendererState(window: WebviewWindow): Promise<any> {
+    return this.rendererStates[await window.sceneIdentifier()];
   }
 
   /** Caches the set of satellite windows for each UUID. */
-  saveSatelliteIds(windows: { [id: string]: BrowserWindow[] }) {
+  saveSatelliteIds(windows: { [id: string]: WebviewWindow[] }) {
     this.satelliteUUIDs = {};
     Object.entries(windows).forEach(([uuid, value]) => {
-      value.forEach((window) => {
-        this.satelliteUUIDs[window.id] = uuid;
+      value.forEach(async (window) => {
+        this.satelliteUUIDs[await window.sceneIdentifier()] = uuid;
       });
     });
   }
