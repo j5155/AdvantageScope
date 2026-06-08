@@ -1050,26 +1050,29 @@ export default class XRRenderer {
                 });
               });
 
-              // Separate carpet
-              let carpet = new THREE.Group();
-              scene.traverse((object) => {
-                if (!(object as THREE.Mesh).isMesh) return;
-                if (object.name.toLowerCase().includes("carpet")) {
-                  let rotation = object.getWorldQuaternion(new THREE.Quaternion());
-                  let position = object.getWorldPosition(new THREE.Vector3());
-                  let objectClone = object.clone(false);
-                  object.visible = false;
-                  objectClone.rotation.setFromQuaternion(rotation);
-                  objectClone.position.copy(position);
-                  carpet.add(objectClone);
-                }
-              });
-
               // Save components
               scene.rotation.setFromQuaternion(rotationSequenceToQuaternion(fieldConfig.rotations));
-              carpet.rotation.setFromQuaternion(rotationSequenceToQuaternion(fieldConfig.rotations));
+
               stagedPieces.rotation.setFromQuaternion(rotationSequenceToQuaternion(fieldConfig.rotations));
-              this.field = scene;
+              let fieldMeshes = await optimizeGeometries(
+                scene,
+                "standard",
+                this.MATERIAL_SPECULAR,
+                this.MATERIAL_SHININESS,
+                true,
+                fieldConfig.isFTC,
+                1
+              );
+              this.field = new THREE.Group();
+              // Intentionally don't include transparent (MASSIVE performance boost)
+              [...fieldMeshes.normal].forEach((mesh) => this.field!!.add(mesh));
+
+              // Separate carpet
+              let carpet = new THREE.Group();
+              [...fieldMeshes.carpet].forEach((mesh) => {
+                carpet.add(mesh);
+              });
+              carpet.rotation.setFromQuaternion(rotationSequenceToQuaternion(fieldConfig.rotations));
               this.fieldCarpet = carpet;
               this.fieldStagedPieces = stagedPieces;
             } else {
